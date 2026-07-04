@@ -34,7 +34,7 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local espEnabled = true
 local autoBuyEnabled = false
-local autoBuyCooldown = 2
+-- autoBuyCooldown удалена - теперь без задержек!
 
 local FILTER = {
     minPrice = 0,
@@ -432,7 +432,7 @@ local function startAutoBuy()
     autoBuyThread = task.spawn(function()
         while autoBuyEnabled do
             autoBuyCycle()
-            task.wait(autoBuyCooldown)
+            task.wait() -- Минимальная задержка ~0.03 сек, чтобы не зависнуть
         end
         autoBuyThread = nil
     end)
