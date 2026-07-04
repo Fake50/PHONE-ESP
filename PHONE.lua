@@ -330,39 +330,69 @@ local function clickVirtualUser(targetPart)
     if not targetPart then return false end
     
     local mouse = player:GetMouse()
+    mouse.Target = targetPart
     
     pcall(function()
-        -- Устанавливаем Target мыши
-        mouse.Target = targetPart
-        
         -- Получаем позицию на экране
         local targetPos = targetPart.Position
-        local screenPos = Camera:WorldToViewportPoint(targetPos)
+        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
         
-        -- Используем VirtualUser для клика (работает в большинстве игр)
-        game:GetService("VirtualUser"):Button1Down(Vector2.new(screenPos.X, screenPos.Y))
-        task.wait(0.05)
-        game:GetService("VirtualUser"):Button1Up(Vector2.new(screenPos.X, screenPos.Y))
+        if onScreen then
+            -- VirtualUser клик
+            game:GetService("VirtualUser"):Button1Down(Vector2.new(screenPos.X, screenPos.Y))
+            task.wait(0.1)
+            game:GetService("VirtualUser"):Button1Up(Vector2.new(screenPos.X, screenPos.Y))
+            print("[AutoBuy] VirtualUser клик выполнен")
+        else
+            -- Если не на экране, просто жмем по центру
+            game:GetService("VirtualUser"):Button1Down(Vector2.new(500, 500))
+            task.wait(0.1)
+            game:GetService("VirtualUser"):Button1Up(Vector2.new(500, 500))
+        end
     end)
     
-    print("[AutoBuy] Клик через VirtualUser")
     return true
 end
 
--- Метод 2: mouse1press/mouse1release
+-- Метод 2: mouse1press/mouse1release (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 local function clickMousePress(targetPart)
+    if not targetPart then return false end
+    
+    local mouse = player:GetMouse()
+    
+    pcall(function()
+        -- Устанавливаем Target ДО клика
+        mouse.Target = targetPart
+        task.wait(0.05)
+        
+        -- Кликаем
+        mouse1press()
+        task.wait(0.1)
+        mouse1release()
+        print("[AutoBuy] mouse1press/release выполнен")
+    end)
+    
+    return true
+end
+
+-- Метод 2.5: Эмуляция UserInputService клика
+local function clickUserInput(targetPart)
     if not targetPart then return false end
     
     local mouse = player:GetMouse()
     mouse.Target = targetPart
     
     pcall(function()
-        mouse1press()
-        task.wait(0.05)
-        mouse1release()
+        local targetPos = targetPart.Position
+        local screenPos = Camera:WorldToViewportPoint(targetPos)
+        
+        -- Эмулируем ввод через VirtualInputManager
+        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, true, game, 0)
+        task.wait(0.1)
+        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, false, game, 0)
+        print("[AutoBuy] VirtualInputManager клик выполнен")
     end)
     
-    print("[AutoBuy] Клик через mouse1press/release")
     return true
 end
 
@@ -445,7 +475,7 @@ local function clickProximity(targetPart)
     return false
 end
 
--- Универсальная функция клика (пробует ВСЕ методы)
+-- Универсальная функция клика (пробует ВСЕ методы + GUI + RemoteEvent)
 local function clickObject(targetObj)
     local targetPart = findItemHitbox(targetObj)
     if not targetPart then
@@ -456,28 +486,65 @@ local function clickObject(targetObj)
     print("[AutoBuy] 🎯 Попытка клика по: " .. targetPart.Name)
     print("[AutoBuy] 📍 Позиция: " .. tostring(targetPart.Position))
     
-    -- Наводим камеру на объект
+    -- Устанавливаем mouse.Target ПЕРЕД всеми кликами
+    local mouse = player:GetMouse()
+    mouse.Target = targetPart
+    
+    -- Наводим камеру на объект (ВАЖНО!)
     local targetPos = targetPart.Position
     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+    task.wait(0.4) -- Увеличил задержку
+    
+    print("[AutoBuy] 🖱️ Начинаю серию кликов...")
+    
+    -- МЕТОД 1: VirtualUser (приоритетный)
+    clickVirtualUser(targetPart)
     task.wait(0.2)
     
-    -- ГЛАВНЫЙ МЕТОД: ClickDetector (пробуем в первую очередь)
-    local detectorSuccess = clickDetector(targetPart)
-    if detectorSuccess then
-        print("[AutoBuy] ✅ ClickDetector сработал!")
-    end
+    -- МЕТОД 2: VirtualInputManager
+    clickUserInput(targetPart)
+    task.wait(0.2)
+    
+    -- МЕТОД 3: mouse1press/release
+    mouse.Target = targetPart
+    clickMousePress(targetPart)
+    task.wait(0.2)
+    
+    -- МЕТОД 4: mouse1click
+    mouse.Target = targetPart
+    pcall(function()
+        mouse1click()
+    end)
+    print("[AutoBuy] 🖱️ mouse1click выполнен")
+    task.wait(0.2)
+    
+    -- МЕТОД 5: ClickDetector (если вдруг есть)
+    clickDetector(targetPart)
     task.wait(0.15)
     
-    -- Дополнительные методы для надежности
-    clickVirtualUser(targetPart)
-    task.wait(0.1)
-    
-    clickMousePress(targetPart)
-    task.wait(0.1)
-    
+    -- МЕТОД 6: ProximityPrompt
     clickProximity(targetPart)
-    task.wait(0.1)
+    task.wait(0.15)
     
+    -- МЕТОД 7: Поиск RemoteEvent
+    pcall(function()
+        for _, remote in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+            if remote:IsA("RemoteEvent") then
+                local name = remote.Name:lower()
+                if name:find("pick") or name:find("take") or name:find("grab") or 
+                   name:find("select") or name:find("add") or name:find("item") then
+                    print("[AutoBuy] 🔥 Вызов RemoteEvent: " .. remote.Name)
+                    remote:FireServer(targetObj)
+                    task.wait(0.05)
+                    remote:FireServer(targetPart)
+                end
+            end
+        end
+    end)
+    
+    print("[AutoBuy] ✅ Все методы клика выполнены")
+    return true
+end
     -- Финальный метод: mouse1click
     local mouse = player:GetMouse()
     mouse.Target = targetPart
