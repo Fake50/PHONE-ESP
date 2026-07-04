@@ -545,16 +545,6 @@ local function clickObject(targetObj)
     print("[AutoBuy] ✅ Все методы клика выполнены")
     return true
 end
-    -- Финальный метод: mouse1click
-    local mouse = player:GetMouse()
-    mouse.Target = targetPart
-    pcall(function()
-        mouse1click()
-    end)
-    print("[AutoBuy] 🖱️ mouse1click выполнен")
-    
-    return true
-end
 
 -- Поиск модели продавца "buy"
 local function findBuySeller()
