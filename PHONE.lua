@@ -473,28 +473,42 @@ local function clickObject(targetObj)
     print("[AutoBuy] 🎯 Попытка клика по: " .. targetPart.Name)
     print("[AutoBuy] 📍 Позиция: " .. tostring(targetPart.Position))
     
-    -- ГЛАВНЫЙ МЕТОД: DataRemoteEvent (из Remote Spy)
-    pcall(function()
-        local dataRemote = game:GetService("ReplicatedStorage"):WaitForChild("DataRemoteEvent", 1)
+    -- ГЛАВНЫЙ МЕТОД: DataRemoteEvent (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+    local success = pcall(function()
+        local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
         if dataRemote then
-            -- Формируем аргументы как в Remote Spy
+            -- Проверяем, что объект существует в workspace
+            if not targetObj or not targetObj.Parent then
+                print("[AutoBuy] ⚠️ Объект предмета не найден в workspace")
+                return false
+            end
+            
+            -- Формируем аргументы точно как в Remote Spy
             local args = {
                 {
-                    "\005",  -- Команда взятия предмета
+                    "\003",  -- Код команды взятия предмета
                     {
-                        {targetObj},  -- Сам объект предмета
+                        targetObj,  -- Сам объект (Display_Pants_15 и т.д.)
                         n = 1
                     }
                 }
             }
             
+            print("[AutoBuy] 📡 Отправляю DataRemoteEvent для: " .. targetObj.Name)
+            print("[AutoBuy] 📍 Полный путь: " .. targetObj:GetFullName())
+            
             dataRemote:FireServer(unpack(args))
-            print("[AutoBuy] ✅ DataRemoteEvent отправлен для: " .. targetObj.Name)
+            print("[AutoBuy] ✅ DataRemoteEvent отправлен успешно!")
             return true
         else
-            print("[AutoBuy] ⚠️ DataRemoteEvent не найден")
+            print("[AutoBuy] ❌ DataRemoteEvent не найден в ReplicatedStorage")
+            return false
         end
     end)
+    
+    if not success then
+        print("[AutoBuy] ❌ Ошибка при отправке DataRemoteEvent")
+    end
     
     task.wait(0.3)
     
