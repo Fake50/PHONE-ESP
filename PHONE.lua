@@ -543,34 +543,44 @@ local function clickObject(targetObj)
     return true
 end
 
--- Поиск модели продавца "buy"
-local function findBuySeller()
-    -- Ищем точное совпадение "buy"
-    local seller = workspace:FindFirstChild("buy")
+-- Поиск продавца Buy в том же магазине, где взят предмет
+local function findBuySellerForItem(itemObj)
+    -- Поднимаемся по иерархии до магазина (ActiveShops -> МагазинName)
+    local current = itemObj
+    local shopPart = nil
+    
+    -- Ищем родителя типа "SportMaster_Part", "Second-Hand_Part" и т.д.
+    while current and current.Parent do
+        if current.Parent.Name == "ActiveShops" then
+            shopPart = current
+            break
+        end
+        current = current.Parent
+    end
+    
+    if not shopPart then
+        print("[AutoBuy] ❌ Не удалось определить магазин предмета")
+        return nil
+    end
+    
+    print("[AutoBuy] 🏪 Магазин предмета: " .. shopPart.Name)
+    
+    -- Ищем продавца в этом магазине: ActiveShops.МагазинName.NPC.Buy
+    local seller = nil
+    pcall(function()
+        seller = shopPart:FindFirstChild("NPC")
+        if seller then
+            seller = seller:FindFirstChild("Buy")
+        end
+    end)
+    
     if seller then
-        print("[AutoBuy] Найден продавец 'buy'")
+        print("[AutoBuy] ✅ Найден продавец Buy в магазине: " .. shopPart.Name)
         return seller
+    else
+        print("[AutoBuy] ❌ Продавец Buy не найден в магазине: " .. shopPart.Name)
+        return nil
     end
-    
-    -- Ищем в потомках workspace
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name:lower() == "buy" then
-            print("[AutoBuy] Найден продавец 'buy' в потомках")
-            return obj
-        end
-    end
-    
-    -- Ищем модели с названиями, похожими на продавца
-    for _, obj in pairs(workspace:GetDescendants()) do
-        local name = obj.Name:lower()
-        if name:find("buy") or name:find("seller") or name:find("cashier") or name:find("npc") then
-            print("[AutoBuy] Найден возможный продавец: " .. obj.Name)
-            return obj
-        end
-    end
-    
-    print("[AutoBuy] Продавец не найден")
-    return nil
 end
 
 -- Основной цикл автобая
@@ -612,10 +622,10 @@ local function autoBuyCycle()
     
     task.wait(0.7) -- Ждем добавления в корзину
     
-    -- 5. Находим продавца "buy"
-    local seller = findBuySeller()
+    -- 5. Находим продавца Buy в том же магазине
+    local seller = findBuySellerForItem(bestItem.object)
     if not seller then
-        print("[AutoBuy] ❌ Продавец 'buy' не найден")
+        print("[AutoBuy] ❌ Продавец Buy не найден")
         return
     end
     
@@ -625,23 +635,37 @@ local function autoBuyCycle()
         return
     end
     
-    -- 7. Кликаем ЛКМ по продавцу
-    print("[AutoBuy] 🖱️ Клик ЛКМ по продавцу...")
-    if not clickObject(seller) then
-        print("[AutoBuy] ❌ Не удалось кликнуть по продавцу")
+    -- 7. Отправляем RemoteEvent для покупки
+    print("[AutoBuy] � Покупаю через продавца...")
+    local buySuccess = pcall(function()
+        local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
+        if dataRemote then
+            local args = {
+                {
+                    "\006",  -- Код команды покупки
+                    {
+                        seller,  -- Объект продавца (Buy)
+                        n = 1
+                    }
+                }
+            }
+            
+            print("[AutoBuy] 📡 Отправляю покупку для продавца: " .. seller:GetFullName())
+            dataRemote:FireServer(unpack(args))
+            print("[AutoBuy] ✅ Покупка отправлена!")
+        else
+            print("[AutoBuy] ❌ DataRemoteEvent не найден")
+        end
+    end)
+    
+    if not buySuccess then
+        print("[AutoBuy] ❌ Ошибка при покупке")
         return
     end
     
     task.wait(0.5)
     
-    -- 8. Пытаемся отправить RemoteEvent (если нужно)
-    pcall(function()
-        local bulkEvent = ReplicatedStorage:FindFirstChild("ServerSideBulkPurchaseEvent")
-        if bulkEvent and bulkEvent:IsA("RemoteEvent") then
-            bulkEvent:FireServer()
-            print("[AutoBuy] 📡 Отправлен ServerSideBulkPurchaseEvent")
-        end
-    end)
+    -- 8. Удаляем старый код RemoteEvent (уже не нужен)
     
     print("[AutoBuy] ✅ Цикл завершен успешно\n")
 end
