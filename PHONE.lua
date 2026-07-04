@@ -320,7 +320,6 @@ local function teleportToObject(targetObj)
     
     -- Телепорт ОЧЕНЬ БЛИЗКО к объекту (почти вплотную)
     root.CFrame = CFrame.new(targetPart.Position) * CFrame.new(0, 0, 2)
-    task.wait(0.3) -- Увеличил время ожидания
     print("[AutoBuy] Телепорт выполнен к позиции")
     return true
 end
@@ -337,13 +336,11 @@ local function clickVirtualUser(targetPart)
         if onScreen then
             -- VirtualUser клик
             game:GetService("VirtualUser"):Button1Down(Vector2.new(screenPos.X, screenPos.Y))
-            task.wait(0.1)
             game:GetService("VirtualUser"):Button1Up(Vector2.new(screenPos.X, screenPos.Y))
             print("[AutoBuy] VirtualUser клик выполнен")
         else
             -- Если не на экране, просто жмем по центру
             game:GetService("VirtualUser"):Button1Down(Vector2.new(500, 500))
-            task.wait(0.1)
             game:GetService("VirtualUser"):Button1Up(Vector2.new(500, 500))
         end
     end)
@@ -357,7 +354,6 @@ local function clickMousePress(targetPart)
     
     pcall(function()
         mouse1press()
-        task.wait(0.1)
         mouse1release()
         print("[AutoBuy] mouse1press/release выполнен")
     end)
@@ -375,7 +371,6 @@ local function clickUserInput(targetPart)
         
         -- Эмулируем ввод через VirtualInputManager
         VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, true, game, 0)
-        task.wait(0.1)
         VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, false, game, 0)
         print("[AutoBuy] VirtualInputManager клик выполнен")
     end)
@@ -409,17 +404,14 @@ local function clickDetector(targetPart)
         pcall(function()
             fireclickdetector(detector)
         end)
-        task.wait(0.05)
         
         pcall(function()
             fireclickdetector(detector, 0)
         end)
-        task.wait(0.05)
         
         pcall(function()
             detector:FireClick(player)
         end)
-        task.wait(0.05)
         
         pcall(function()
             detector.Parent.ClickDetector.MouseClick:Fire(player)
@@ -510,28 +502,17 @@ local function clickObject(targetObj)
         print("[AutoBuy] ❌ Ошибка при отправке DataRemoteEvent")
     end
     
-    task.wait(0.3)
-    
     -- Резервные методы на случай, если RemoteEvent не сработал
-    
-    -- Наводим камеру на объект
-    local targetPos = targetPart.Position
-    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-    task.wait(0.3)
-    
-    print("[AutoBuy] �️ Пробую резервные методы клика...")
+    print("[AutoBuy] 🛠️ Пробую резервные методы клика...")
     
     -- МЕТОД 1: VirtualUser
     clickVirtualUser(targetPart)
-    task.wait(0.2)
     
     -- МЕТОД 2: VirtualInputManager
     clickUserInput(targetPart)
-    task.wait(0.2)
     
     -- МЕТОД 3: mouse1press/release
     clickMousePress(targetPart)
-    task.wait(0.2)
     
     -- МЕТОД 4: mouse1click
     pcall(function()
@@ -620,8 +601,6 @@ local function autoBuyCycle()
         return
     end
     
-    task.wait(0.7) -- Ждем добавления в корзину
-    
     -- 5. Находим продавца Buy в том же магазине
     local seller = findBuySellerForItem(bestItem.object)
     if not seller then
@@ -662,8 +641,6 @@ local function autoBuyCycle()
         print("[AutoBuy] ❌ Ошибка при покупке")
         return
     end
-    
-    task.wait(0.5)
     
     -- 8. Удаляем старый код RemoteEvent (уже не нужен)
     
