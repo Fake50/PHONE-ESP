@@ -34,6 +34,7 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local espEnabled = true
 local autoBuyEnabled = false
+local autoSellEnabled = false
 -- autoBuyCooldown удалена - теперь без задержек!
 
 local FILTER = {
@@ -149,7 +150,7 @@ local function findAllItems()
 end
 
 -- ============================================
--- ESP (без изменений)
+-- ESP (с автоудалением купленных предметов)
 -- ============================================
 local function clearESP()
     for _, obj in pairs(workspace:GetDescendants()) do
@@ -157,6 +158,22 @@ local function clearESP()
             obj.ESP_Billboard:Destroy()
         end
     end
+end
+
+-- Проверка, существует ли объект в workspace (не купленный)
+local function isObjectStillExists(obj)
+    if not obj or not obj.Parent then
+        return false
+    end
+    -- Проверяем что объект все еще в workspace, а не удален
+    local current = obj
+    while current do
+        if current == workspace then
+            return true
+        end
+        current = current.Parent
+    end
+    return false
 end
 
 local rarityColors = {
@@ -236,9 +253,37 @@ local function updateESP()
     if not espEnabled then return end
     local items = findAllItems()
     for _, item in pairs(items) do
-        createESP(item.object, item)
+        -- Проверяем что объект еще существует перед созданием ESP
+        if isObjectStillExists(item.object) then
+            createESP(item.object, item)
+        end
     end
 end
+
+-- Автоматическое обновление ESP каждые 0.5 секунд (убирает купленные предметы)
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if espEnabled then
+            -- Удаляем ESP с несуществующих объектов
+            for _, obj in pairs(workspace:GetDescendants()) do
+                local billboard = obj:FindFirstChild("ESP_Billboard")
+                if billboard then
+                    if not isObjectStillExists(obj) then
+                        billboard:Destroy()
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Мгновенное удаление ESP при удалении объекта из workspace
+workspace.DescendantRemoving:Connect(function(obj)
+    if obj:FindFirstChild("ESP_Billboard") then
+        obj.ESP_Billboard:Destroy()
+    end
+end)
 
 -- ============================================
 -- AUTOBUY (ВЫБОР ВЫГОДНОГО, ТЕЛЕПОРТ, КЛИК ЛКМ)
@@ -426,6 +471,186 @@ local function autoBuyCycle()
     print("[AutoBuy] ✅ Цикл завершен\n")
 end
 
+-- ============================================
+-- AUTOSELL (АВТОПРОДАЖА)
+-- ============================================
+
+-- Поиск продавца Sell (можно указать конкретный магазин или искать ближайшего)
+local function findSellDealer(shopName)
+    local seller = nil
+    
+    if shopName then
+        -- Ищем в конкретном магазине
+        local shop = workspace:FindFirstChild("ActiveShops")
+        if shop then
+            local targetShop = shop:FindFirstChild(shopName)
+            if targetShop then
+                pcall(function()
+                    seller = targetShop:FindFirstChild("NPC")
+                    if seller then
+                        seller = seller:FindFirstChild("Sell")
+                    end
+                end)
+            end
+        end
+    else
+        -- Ищем ближайшего продавца Sell
+        local minDist = math.huge
+        local activeShops = workspace:FindFirstChild("ActiveShops")
+        if activeShops then
+            for _, shop in pairs(activeShops:GetChildren()) do
+                pcall(function()
+                    local npc = shop:FindFirstChild("NPC")
+                    if npc then
+                        local sellNpc = npc:FindFirstChild("Sell")
+                        if sellNpc then
+                            local dist = getDistance(sellNpc)
+                            if dist and dist < minDist then
+                                minDist = dist
+                                seller = sellNpc
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end
+    
+    if seller then
+        print("[AutoSell] ✅ Найден продавец Sell")
+        return seller
+    else
+        print("[AutoSell] ❌ Продавец Sell не найден")
+        return nil
+    end
+end
+
+-- Получение предметов из инвентаря игрока
+local function getInventoryItems()
+    local items = {}
+    
+    -- ВАРИАНТ 1: Предметы в PlayerGui (часто так хранится инвентарь)
+    pcall(function()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            local inventory = playerGui:FindFirstChild("Inventory") or 
+                            playerGui:FindFirstChild("Backpack") or
+                            playerGui:FindFirstChild("Items")
+            if inventory then
+                for _, item in pairs(inventory:GetDescendants()) do
+                    if item:IsA("Frame") or item:IsA("ImageLabel") then
+                        table.insert(items, item)
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- ВАРИАНТ 2: Предметы в Character (носимые вещи)
+    pcall(function()
+        local char = player.Character
+        if char then
+            for _, item in pairs(char:GetChildren()) do
+                if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("Accessory") then
+                    table.insert(items, item)
+                end
+            end
+        end
+    end)
+    
+    -- ВАРИАНТ 3: Backpack (стандартное место для предметов Roblox)
+    pcall(function()
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            for _, item in pairs(backpack:GetChildren()) do
+                table.insert(items, item)
+            end
+        end
+    end)
+    
+    print("[AutoSell] 📦 Найдено предметов: " .. #items)
+    return items
+end
+
+-- Основной цикл автопродажи
+local function autoSellCycle()
+    if not autoSellEnabled then return end
+    
+    -- 1. Получаем предметы из инвентаря
+    local items = getInventoryItems()
+    if #items == 0 then
+        print("[AutoSell] Нет предметов для продажи")
+        return
+    end
+    
+    -- 2. Находим продавца Sell (ближайшего)
+    local seller = findSellDealer()
+    if not seller then
+        print("[AutoSell] ❌ Продавец Sell не найден")
+        return
+    end
+    
+    -- 3. Телепортируемся к продавцу
+    if not teleportToObject(seller) then
+        print("[AutoSell] ❌ Не удалось телепортироваться к продавцу")
+        return
+    end
+    
+    -- 4. Продаем через RemoteEvent
+    print("[AutoSell] 💰 Продаю предметы...")
+    local sellSuccess = pcall(function()
+        local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
+        if dataRemote then
+            local args = {
+                {
+                    "\007",  -- Код команды продажи (подтверждено!)
+                    {
+                        seller,
+                        n = 1
+                    }
+                }
+            }
+            
+            print("[AutoSell] 📡 Продажа через RemoteEvent")
+            dataRemote:FireServer(unpack(args))
+            print("[AutoSell] ✅ Продажа завершена!")
+        else
+            print("[AutoSell] ❌ DataRemoteEvent не найден")
+        end
+    end)
+    
+    if not sellSuccess then
+        print("[AutoSell] ❌ Ошибка при продаже")
+        return
+    end
+    
+    print("[AutoSell] ✅ Цикл продажи завершен\n")
+end
+
+local autoSellThread = nil
+local function startAutoSell()
+    if autoSellThread then return end
+    autoSellThread = task.spawn(function()
+        while autoSellEnabled do
+            autoSellCycle()
+            task.wait() -- Минимальная задержка
+        end
+        autoSellThread = nil
+    end)
+end
+
+local function stopAutoSell()
+    autoSellEnabled = false
+    if autoSellThread then
+        task.cancel(autoSellThread)
+        autoSellThread = nil
+    end
+end
+
+-- ============================================
+-- AUTOBUY THREAD
+-- ============================================
+
 local autoBuyThread = nil
 local function startAutoBuy()
     if autoBuyThread then return end
@@ -561,6 +786,31 @@ local function createFluentGUI()
         end
     })
 
+    MainTab:AddParagraph({
+        Title = "💰 Авто-продажа",
+        Content = "",
+    })
+
+    MainTab:AddToggle("AutoSell", {
+        Title = "Включить AutoSell",
+        Default = autoSellEnabled,
+        Callback = function(v)
+            autoSellEnabled = v
+            if v then
+                startAutoSell()
+            else
+                stopAutoSell()
+            end
+        end
+    })
+
+    MainTab:AddButton({
+        Title = "Выполнить одну итерацию AutoSell",
+        Callback = function()
+            autoSellCycle()
+        end
+    })
+
     MainTab:AddButton({
         Title = "Обновить ESP",
         Callback = function()
@@ -578,7 +828,7 @@ function createSimpleGUI()
     screenGui.Parent = player:WaitForChild("PlayerGui")
 
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 300, 0, 350)
+    mainFrame.Size = UDim2.new(0, 300, 0, 395) -- Увеличен для кнопки AutoSell
     mainFrame.Position = UDim2.new(0.5, -150, 0.3, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     mainFrame.BorderSizePixel = 0
@@ -680,9 +930,33 @@ function createSimpleGUI()
         end
     end)
 
+    local autoSellBtn = Instance.new("TextButton")
+    autoSellBtn.Size = UDim2.new(0.8, 0, 0, 35)
+    autoSellBtn.Position = UDim2.new(0.1, 0, 0, 260)
+    autoSellBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    autoSellBtn.BorderSizePixel = 0
+    autoSellBtn.Text = "AutoSell ВЫКЛ"
+    autoSellBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    autoSellBtn.Font = Enum.Font.SourceSansBold
+    autoSellBtn.TextSize = 16
+    autoSellBtn.Parent = mainFrame
+    Instance.new("UICorner").CornerRadius = UDim.new(0, 5)
+    Instance.new("UICorner").Parent = autoSellBtn
+
+    autoSellBtn.MouseButton1Click:Connect(function()
+        autoSellEnabled = not autoSellEnabled
+        autoSellBtn.BackgroundColor3 = autoSellEnabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
+        autoSellBtn.Text = autoSellEnabled and "AutoSell ВКЛ" or "AutoSell ВЫКЛ"
+        if autoSellEnabled then
+            startAutoSell()
+        else
+            stopAutoSell()
+        end
+    end)
+
     local refreshBtn = Instance.new("TextButton")
     refreshBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    refreshBtn.Position = UDim2.new(0.1, 0, 0, 260)
+    refreshBtn.Position = UDim2.new(0.1, 0, 0, 305)
     refreshBtn.BackgroundColor3 = Color3.fromRGB(60,60,80)
     refreshBtn.BorderSizePixel = 0
     refreshBtn.Text = "Обновить ESP"
