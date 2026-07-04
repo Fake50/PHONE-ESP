@@ -160,22 +160,6 @@ local function clearESP()
     end
 end
 
--- Проверка, существует ли объект в workspace (не купленный)
-local function isObjectStillExists(obj)
-    if not obj or not obj.Parent then
-        return false
-    end
-    -- Проверяем что объект все еще в workspace, а не удален
-    local current = obj
-    while current do
-        if current == workspace then
-            return true
-        end
-        current = current.Parent
-    end
-    return false
-end
-
 local rarityColors = {
     Common = Color3.fromRGB(255, 255, 255),
     Uncommon = Color3.fromRGB(0, 255, 0),
@@ -253,35 +237,18 @@ local function updateESP()
     if not espEnabled then return end
     local items = findAllItems()
     for _, item in pairs(items) do
-        -- Проверяем что объект еще существует перед созданием ESP
-        if isObjectStillExists(item.object) then
-            createESP(item.object, item)
-        end
+        createESP(item.object, item)
     end
 end
 
--- Автоматическое обновление ESP каждые 0.5 секунд (убирает купленные предметы)
-task.spawn(function()
-    while true do
-        task.wait(0.5)
+-- Слушаем удаление объектов из workspace для автоматического обновления ESP
+workspace.DescendantRemoving:Connect(function(descendant)
+    -- Если удаляется объект с ESP, обновляем весь ESP через короткую задержку
+    if descendant:FindFirstChild("ESP_Billboard") or descendant.Name:find("Display_") then
+        task.wait(0.1)
         if espEnabled then
-            -- Удаляем ESP с несуществующих объектов
-            for _, obj in pairs(workspace:GetDescendants()) do
-                local billboard = obj:FindFirstChild("ESP_Billboard")
-                if billboard then
-                    if not isObjectStillExists(obj) then
-                        billboard:Destroy()
-                    end
-                end
-            end
+            updateESP()
         end
-    end
-end)
-
--- Мгновенное удаление ESP при удалении объекта из workspace
-workspace.DescendantRemoving:Connect(function(obj)
-    if obj:FindFirstChild("ESP_Billboard") then
-        obj.ESP_Billboard:Destroy()
     end
 end)
 
@@ -468,159 +435,109 @@ local function autoBuyCycle()
         return
     end
     
+    -- 8. Обновляем ESP после покупки
+    if espEnabled then
+        task.wait(0.2) -- Небольшая задержка чтобы предмет успел удалиться
+        updateESP()
+    end
+    
     print("[AutoBuy] ✅ Цикл завершен\n")
 end
 
 -- ============================================
--- AUTOSELL (АВТОПРОДАЖА)
+-- AUTOSELL (АВТОПРОДАЖА) - УПРОЩЕННАЯ ВЕРСИЯ
 -- ============================================
 
--- Поиск продавца Sell (можно указать конкретный магазин или искать ближайшего)
-local function findSellDealer(shopName)
+-- Поиск ближайшего продавца Sell
+local function findSellDealer()
     local seller = nil
+    local minDist = math.huge
     
-    if shopName then
-        -- Ищем в конкретном магазине
-        local shop = workspace:FindFirstChild("ActiveShops")
-        if shop then
-            local targetShop = shop:FindFirstChild(shopName)
-            if targetShop then
-                pcall(function()
-                    seller = targetShop:FindFirstChild("NPC")
-                    if seller then
-                        seller = seller:FindFirstChild("Sell")
+    local activeShops = workspace:FindFirstChild("ActiveShops")
+    if not activeShops then
+        print("[AutoSell] ❌ ActiveShops не найдена")
+        return nil
+    end
+    
+    for _, shop in pairs(activeShops:GetChildren()) do
+        pcall(function()
+            local npc = shop:FindFirstChild("NPC")
+            if npc then
+                local sellNpc = npc:FindFirstChild("Sell")
+                if sellNpc then
+                    local dist = getDistance(sellNpc)
+                    if dist and dist < minDist then
+                        minDist = dist
+                        seller = sellNpc
+                        print("[AutoSell] 🔍 Найден продавец Sell в магазине: " .. shop.Name .. " (дистанция: " .. math.floor(dist) .. "м)")
                     end
-                end)
+                end
             end
-        end
-    else
-        -- Ищем ближайшего продавца Sell
-        local minDist = math.huge
-        local activeShops = workspace:FindFirstChild("ActiveShops")
-        if activeShops then
-            for _, shop in pairs(activeShops:GetChildren()) do
-                pcall(function()
-                    local npc = shop:FindFirstChild("NPC")
-                    if npc then
-                        local sellNpc = npc:FindFirstChild("Sell")
-                        if sellNpc then
-                            local dist = getDistance(sellNpc)
-                            if dist and dist < minDist then
-                                minDist = dist
-                                seller = sellNpc
-                            end
-                        end
-                    end
-                end)
-            end
-        end
+        end)
     end
     
     if seller then
-        print("[AutoSell] ✅ Найден продавец Sell")
+        print("[AutoSell] ✅ Выбран продавец Sell")
         return seller
     else
-        print("[AutoSell] ❌ Продавец Sell не найден")
+        print("[AutoSell] ❌ Продавец Sell не найден в ActiveShops")
         return nil
     end
 end
 
--- Получение предметов из инвентаря игрока
-local function getInventoryItems()
-    local items = {}
-    
-    -- ВАРИАНТ 1: Предметы в PlayerGui (часто так хранится инвентарь)
-    pcall(function()
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if playerGui then
-            local inventory = playerGui:FindFirstChild("Inventory") or 
-                            playerGui:FindFirstChild("Backpack") or
-                            playerGui:FindFirstChild("Items")
-            if inventory then
-                for _, item in pairs(inventory:GetDescendants()) do
-                    if item:IsA("Frame") or item:IsA("ImageLabel") then
-                        table.insert(items, item)
-                    end
-                end
-            end
-        end
-    end)
-    
-    -- ВАРИАНТ 2: Предметы в Character (носимые вещи)
-    pcall(function()
-        local char = player.Character
-        if char then
-            for _, item in pairs(char:GetChildren()) do
-                if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("Accessory") then
-                    table.insert(items, item)
-                end
-            end
-        end
-    end)
-    
-    -- ВАРИАНТ 3: Backpack (стандартное место для предметов Roblox)
-    pcall(function()
-        local backpack = player:FindFirstChild("Backpack")
-        if backpack then
-            for _, item in pairs(backpack:GetChildren()) do
-                table.insert(items, item)
-            end
-        end
-    end)
-    
-    print("[AutoSell] 📦 Найдено предметов: " .. #items)
-    return items
-end
-
--- Основной цикл автопродажи
+-- Основной цикл автопродажи (УПРОЩЕННЫЙ - просто телепорт и продажа)
 local function autoSellCycle()
-    if not autoSellEnabled then return end
-    
-    -- 1. Получаем предметы из инвентаря
-    local items = getInventoryItems()
-    if #items == 0 then
-        print("[AutoSell] Нет предметов для продажи")
-        return
+    if not autoSellEnabled then 
+        print("[AutoSell] ⚠️ AutoSell выключен")
+        return 
     end
     
-    -- 2. Находим продавца Sell (ближайшего)
+    print("[AutoSell] 🔄 Начинаю цикл продажи...")
+    
+    -- 1. Находим продавца Sell (ближайшего)
     local seller = findSellDealer()
     if not seller then
         print("[AutoSell] ❌ Продавец Sell не найден")
         return
     end
     
-    -- 3. Телепортируемся к продавцу
+    -- 2. Телепортируемся к продавцу
+    print("[AutoSell] 🚀 Телепортирую к продавцу...")
     if not teleportToObject(seller) then
         print("[AutoSell] ❌ Не удалось телепортироваться к продавцу")
         return
     end
     
-    -- 4. Продаем через RemoteEvent
-    print("[AutoSell] 💰 Продаю предметы...")
+    -- 3. Продаем через RemoteEvent (ПРАВИЛЬНЫЙ КОД \004 + StringValue)
+    print("[AutoSell] 💰 Отправляю команду продажи...")
     local sellSuccess = pcall(function()
         local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
         if dataRemote then
+            -- Создаем StringValue как в оригинальном коде
+            local stringValue = Instance.new("StringValue")
+            
             local args = {
                 {
-                    "\007",  -- Код команды продажи (подтверждено!)
+                    "\004",  -- ПРАВИЛЬНЫЙ код команды продажи!
                     {
-                        seller,
+                        stringValue,
                         n = 1
                     }
                 }
             }
             
-            print("[AutoSell] 📡 Продажа через RemoteEvent")
+            print("[AutoSell] 📡 Отправка DataRemoteEvent с кодом \\004")
             dataRemote:FireServer(unpack(args))
-            print("[AutoSell] ✅ Продажа завершена!")
+            print("[AutoSell] ✅ Команда продажи отправлена!")
+            return true
         else
-            print("[AutoSell] ❌ DataRemoteEvent не найден")
+            print("[AutoSell] ❌ DataRemoteEvent не найден в ReplicatedStorage")
+            return false
         end
     end)
     
     if not sellSuccess then
-        print("[AutoSell] ❌ Ошибка при продаже")
+        print("[AutoSell] ❌ Ошибка при отправке команды продажи")
         return
     end
     
