@@ -245,63 +245,8 @@ end
 -- ============================================
 
 local ReplicatedStorage = game:GetService("RobloxReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Camera = workspace.CurrentCamera
 
--- Поиск хитбокса (кликабельной части) предмета
-local function findItemHitbox(itemObj)
-    print("[AutoBuy] 🔍 Поиск хитбокса в объекте: " .. itemObj.Name)
-    
-    -- ПРИОРИТЕТ 1: Ищем Part/MeshPart с ClickDetector внутри
-    for _, child in pairs(itemObj:GetDescendants()) do
-        if child:IsA("ClickDetector") then
-            local parentPart = child.Parent
-            print("[AutoBuy] ✅ Найден ClickDetector! Родитель: " .. parentPart.Name .. " (" .. parentPart.ClassName .. ")")
-            return parentPart
-        end
-    end
-    
-    -- ПРИОРИТЕТ 2: Ищем MeshPart/Part с именем типа предмета (Shirt, Pants, Hat и т.д.)
-    for _, child in pairs(itemObj:GetDescendants()) do
-        if child:IsA("MeshPart") or child:IsA("Part") then
-            local name = child.Name:lower()
-            if name:find("shirt") or name:find("pants") or name:find("hat") or 
-               name:find("shoes") or name:find("item") or name:find("clothing") then
-                print("[AutoBuy] 🎯 Найден MeshPart предмета: " .. child.Name)
-                
-                -- Проверяем, есть ли у него ClickDetector
-                if child:FindFirstChildOfClass("ClickDetector") then
-                    print("[AutoBuy] ✅ У MeshPart есть ClickDetector!")
-                end
-                
-                return child
-            end
-        end
-    end
-    
-    -- ПРИОРИТЕТ 3: Берем первый MeshPart/Part
-    for _, child in pairs(itemObj:GetDescendants()) do
-        if child:IsA("MeshPart") or child:IsA("Part") then
-            print("[AutoBuy] 🎯 Использую первый MeshPart: " .. child.Name)
-            return child
-        end
-    end
-    
-    -- ПРИОРИТЕТ 4: Сам объект
-    if itemObj:IsA("Model") then
-        local part = itemObj.PrimaryPart or itemObj:FindFirstChildWhichIsA("BasePart")
-        print("[AutoBuy] 🎯 Использую PrimaryPart модели")
-        return part
-    elseif itemObj:IsA("BasePart") then
-        print("[AutoBuy] 🎯 Объект сам BasePart")
-        return itemObj
-    end
-    
-    print("[AutoBuy] ❌ Хитбокс не найден!")
-    return nil
-end
-
--- Телепортация к объекту (предмету или продавцу)
+-- Телепортация к объекту (предмету или продавцу) БЕЗ ЗАДЕРЖЕК
 local function teleportToObject(targetObj)
     local char = player.Character
     if not char then return false end
@@ -318,210 +263,46 @@ local function teleportToObject(targetObj)
         return false
     end
     
-    -- Телепорт ОЧЕНЬ БЛИЗКО к объекту (почти вплотную)
+    -- Мгновенный телепорт
     root.CFrame = CFrame.new(targetPart.Position) * CFrame.new(0, 0, 2)
-    print("[AutoBuy] Телепорт выполнен к позиции")
+    print("[AutoBuy] Телепорт выполнен")
     return true
 end
 
--- Метод 1: Клик через VirtualUser (самый надежный для Roblox)
-local function clickVirtualUser(targetPart)
-    if not targetPart then return false end
-    
-    pcall(function()
-        -- Получаем позицию на экране
-        local targetPos = targetPart.Position
-        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-        
-        if onScreen then
-            -- VirtualUser клик
-            game:GetService("VirtualUser"):Button1Down(Vector2.new(screenPos.X, screenPos.Y))
-            game:GetService("VirtualUser"):Button1Up(Vector2.new(screenPos.X, screenPos.Y))
-            print("[AutoBuy] VirtualUser клик выполнен")
-        else
-            -- Если не на экране, просто жмем по центру
-            game:GetService("VirtualUser"):Button1Down(Vector2.new(500, 500))
-            game:GetService("VirtualUser"):Button1Up(Vector2.new(500, 500))
-        end
-    end)
-    
-    return true
-end
-
--- Метод 2: mouse1press/mouse1release
-local function clickMousePress(targetPart)
-    if not targetPart then return false end
-    
-    pcall(function()
-        mouse1press()
-        mouse1release()
-        print("[AutoBuy] mouse1press/release выполнен")
-    end)
-    
-    return true
-end
-
--- Метод 2.5: Эмуляция UserInputService клика
-local function clickUserInput(targetPart)
-    if not targetPart then return false end
-    
-    pcall(function()
-        local targetPos = targetPart.Position
-        local screenPos = Camera:WorldToViewportPoint(targetPos)
-        
-        -- Эмулируем ввод через VirtualInputManager
-        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, true, game, 0)
-        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, false, game, 0)
-        print("[AutoBuy] VirtualInputManager клик выполнен")
-    end)
-    
-    return true
-end
-
--- Метод 3: ClickDetector (УСИЛЕННАЯ ВЕРСИЯ)
-local function clickDetector(targetPart)
-    if not targetPart then return false end
-    
-    local detector = nil
-    
-    -- Ищем ClickDetector прямо в targetPart
-    if targetPart:FindFirstChildOfClass("ClickDetector") then
-        detector = targetPart:FindFirstChildOfClass("ClickDetector")
-        print("[AutoBuy] ✅ ClickDetector найден в самом объекте")
-    else
-        -- Ищем в потомках
-        for _, child in pairs(targetPart:GetDescendants()) do
-            if child:IsA("ClickDetector") then
-                detector = child
-                print("[AutoBuy] ✅ ClickDetector найден в потомке: " .. child.Parent.Name)
-                break
-            end
-        end
-    end
-    
-    if detector then
-        -- Пробуем ВСЕ способы вызова ClickDetector
-        pcall(function()
-            fireclickdetector(detector)
-        end)
-        
-        pcall(function()
-            fireclickdetector(detector, 0)
-        end)
-        
-        pcall(function()
-            detector:FireClick(player)
-        end)
-        
-        pcall(function()
-            detector.Parent.ClickDetector.MouseClick:Fire(player)
-        end)
-        
-        print("[AutoBuy] ✅ ClickDetector активирован всеми методами")
-        return true
-    else
-        print("[AutoBuy] ⚠️ ClickDetector не найден")
-    end
-    
-    return false
-end
-
--- Метод 4: ProximityPrompt (если есть)
-local function clickProximity(targetPart)
-    if not targetPart then return false end
-    
-    local prompt = nil
-    
-    if targetPart:FindFirstChildOfClass("ProximityPrompt") then
-        prompt = targetPart:FindFirstChildOfClass("ProximityPrompt")
-    else
-        for _, child in pairs(targetPart:GetDescendants()) do
-            if child:IsA("ProximityPrompt") then
-                prompt = child
-                break
-            end
-        end
-    end
-    
-    if prompt then
-        pcall(function()
-            fireproximityprompt(prompt)
-        end)
-        print("[AutoBuy] Клик через ProximityPrompt")
-        return true
-    end
-    
-    return false
-end
-
--- Универсальная функция клика (пробует ВСЕ методы + DataRemoteEvent)
+-- Универсальная функция клика (ТОЛЬКО DataRemoteEvent, БЕЗ КУРСОРА)
 local function clickObject(targetObj)
-    local targetPart = findItemHitbox(targetObj)
-    if not targetPart then
-        print("[AutoBuy] ❌ Не найден хитбокс объекта")
-        return false
-    end
+    print("[AutoBuy] 🎯 Взятие предмета через RemoteEvent")
     
-    print("[AutoBuy] 🎯 Попытка клика по: " .. targetPart.Name)
-    print("[AutoBuy] 📍 Позиция: " .. tostring(targetPart.Position))
-    
-    -- ГЛАВНЫЙ МЕТОД: DataRemoteEvent (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+    -- ТОЛЬКО DataRemoteEvent - мгновенно, без курсора
     local success = pcall(function()
         local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
         if dataRemote then
-            -- Проверяем, что объект существует в workspace
             if not targetObj or not targetObj.Parent then
                 print("[AutoBuy] ⚠️ Объект предмета не найден в workspace")
                 return false
             end
             
-            -- Формируем аргументы точно как в Remote Spy
             local args = {
                 {
                     "\003",  -- Код команды взятия предмета
                     {
-                        targetObj,  -- Сам объект (Display_Pants_15 и т.д.)
+                        targetObj,
                         n = 1
                     }
                 }
             }
             
             print("[AutoBuy] 📡 Отправляю DataRemoteEvent для: " .. targetObj.Name)
-            print("[AutoBuy] 📍 Полный путь: " .. targetObj:GetFullName())
-            
             dataRemote:FireServer(unpack(args))
-            print("[AutoBuy] ✅ DataRemoteEvent отправлен успешно!")
+            print("[AutoBuy] ✅ DataRemoteEvent отправлен!")
             return true
         else
-            print("[AutoBuy] ❌ DataRemoteEvent не найден в ReplicatedStorage")
+            print("[AutoBuy] ❌ DataRemoteEvent не найден")
             return false
         end
     end)
     
-    if not success then
-        print("[AutoBuy] ❌ Ошибка при отправке DataRemoteEvent")
-    end
-    
-    -- Резервные методы на случай, если RemoteEvent не сработал
-    print("[AutoBuy] 🛠️ Пробую резервные методы клика...")
-    
-    -- МЕТОД 1: VirtualUser
-    clickVirtualUser(targetPart)
-    
-    -- МЕТОД 2: VirtualInputManager
-    clickUserInput(targetPart)
-    
-    -- МЕТОД 3: mouse1press/release
-    clickMousePress(targetPart)
-    
-    -- МЕТОД 4: mouse1click
-    pcall(function()
-        mouse1click()
-    end)
-    print("[AutoBuy] 🖱️ mouse1click выполнен")
-    
-    print("[AutoBuy] ✅ Все методы выполнены")
-    return true
+    return success
 end
 
 -- Поиск продавца Buy в том же магазине, где взят предмет
@@ -614,8 +395,8 @@ local function autoBuyCycle()
         return
     end
     
-    -- 7. Отправляем RemoteEvent для покупки
-    print("[AutoBuy] � Покупаю через продавца...")
+    -- 7. Отправляем RemoteEvent для покупки (БЕЗ КУРСОРА)
+    print("[AutoBuy] 💳 Покупаю через продавца...")
     local buySuccess = pcall(function()
         local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
         if dataRemote then
@@ -623,15 +404,15 @@ local function autoBuyCycle()
                 {
                     "\006",  -- Код команды покупки
                     {
-                        seller,  -- Объект продавца (Buy)
+                        seller,
                         n = 1
                     }
                 }
             }
             
-            print("[AutoBuy] 📡 Отправляю покупку для продавца: " .. seller:GetFullName())
+            print("[AutoBuy] 📡 Покупка через RemoteEvent")
             dataRemote:FireServer(unpack(args))
-            print("[AutoBuy] ✅ Покупка отправлена!")
+            print("[AutoBuy] ✅ Покупка завершена!")
         else
             print("[AutoBuy] ❌ DataRemoteEvent не найден")
         end
@@ -642,9 +423,7 @@ local function autoBuyCycle()
         return
     end
     
-    -- 8. Удаляем старый код RemoteEvent (уже не нужен)
-    
-    print("[AutoBuy] ✅ Цикл завершен успешно\n")
+    print("[AutoBuy] ✅ Цикл завершен\n")
 end
 
 local autoBuyThread = nil
