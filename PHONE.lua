@@ -34,9 +34,7 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local espEnabled = true
 local autoBuyEnabled = false
-local autoSellEnabled = false
-local autoBuyCooldown = 0.1  -- Уменьшил с 2 до 0.1 сек!
-local purchasedItems = {} -- Список купленных предметов (чтобы убрать ESP)
+local autoBuyCooldown = 2
 
 local FILTER = {
     minPrice = 0,
@@ -193,11 +191,6 @@ end
 local function createESP(obj, item)
     if not obj or not obj.Parent then return end
     if obj:FindFirstChild("ESP_Billboard") then return end
-    
-    -- Проверяем, не куплен ли уже предмет
-    if purchasedItems[obj] then
-        return -- Не создаем ESP для купленных предметов
-    end
 
     local distance = getDistance(obj)
     local distText = distance and string.format("%.0f м", distance) or ""
@@ -308,7 +301,7 @@ local function findItemHitbox(itemObj)
     return nil
 end
 
--- Телепортация к объекту (БЕЗ задержки)
+-- Телепортация к объекту (предмету или продавцу)
 local function teleportToObject(targetObj)
     local char = player.Character
     if not char then return false end
@@ -321,11 +314,14 @@ local function teleportToObject(targetObj)
     end
     
     if not targetPart or not targetPart:IsA("BasePart") then
+        print("[AutoBuy] Не удалось найти позицию для телепорта")
         return false
     end
     
-    -- Телепорт БЕЗ задержки!
+    -- Телепорт ОЧЕНЬ БЛИЗКО к объекту (почти вплотную)
     root.CFrame = CFrame.new(targetPart.Position) * CFrame.new(0, 0, 2)
+    task.wait(0.3) -- Увеличил время ожидания
+    print("[AutoBuy] Телепорт выполнен к позиции")
     return true
 end
 
@@ -466,35 +462,8 @@ local function clickProximity(targetPart)
     return false
 end
 
--- Универсальная функция клика (только DataRemoteEvent, БЕЗ задержек и наведения)
+-- Универсальная функция клика (пробует ВСЕ методы + DataRemoteEvent)
 local function clickObject(targetObj)
-    -- Отправляем DataRemoteEvent напрямую
-    local success = pcall(function()
-        local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
-        if dataRemote then
-            if not targetObj or not targetObj.Parent then
-                print("[AutoBuy] ⚠️ Объект предмета не найден")
-                return false
-            end
-            
-            local args = {
-                {
-                    "\003",
-                    {
-                        targetObj,
-                        n = 1
-                    }
-                }
-            }
-            
-            dataRemote:FireServer(unpack(args))
-            print("[AutoBuy] ✅ Предмет взят: " .. targetObj.Name)
-            return true
-        end
-    end)
-    
-    return success
-end
     local targetPart = findItemHitbox(targetObj)
     if not targetPart then
         print("[AutoBuy] ❌ Не найден хитбокс объекта")
@@ -694,13 +663,6 @@ local function autoBuyCycle()
         return
     end
     
-    -- Помечаем предмет как купленный (убираем ESP)
-    purchasedItems[bestItem.object] = true
-    if bestItem.object:FindFirstChild("ESP_Billboard") then
-        bestItem.object.ESP_Billboard:Destroy()
-        print("[AutoBuy] 🗑️ ESP удален с купленного предмета")
-    end
-    
     task.wait(0.5)
     
     -- 8. Удаляем старый код RemoteEvent (уже не нужен)
@@ -725,117 +687,6 @@ local function stopAutoBuy()
     if autoBuyThread then
         task.cancel(autoBuyThread)
         autoBuyThread = nil
-    end
-end
-
--- ============================================
--- AUTOSELL (продажа предметов из инвентаря)
--- ============================================
-
--- Функция поиска предметов в инвентаре
-local function findInventoryItems()
-    local items = {}
-    
-    pcall(function()
-        -- Вариант 1: Ищем в Character
-        if player.Character then
-            for _, item in pairs(player.Character:GetDescendants()) do
-                if item:IsA("StringValue") and item.Value and type(item.Value) == "string" and string.find(item.Value, "{") then
-                    local data = decodeItemData(item.Value)
-                    if data and data.Price then
-                        table.insert(items, item.Parent)
-                        print("[AutoSell] Найден предмет в Character: " .. item.Parent.Name)
-                    end
-                end
-            end
-        end
-        
-        -- Вариант 2: Ищем в PlayerGui
-        local gui = player:FindFirstChild("PlayerGui")
-        if gui then
-            for _, item in pairs(gui:GetDescendants()) do
-                if item:IsA("StringValue") and item.Value and type(item.Value) == "string" and string.find(item.Value, "{") then
-                    local data = decodeItemData(item.Value)
-                    if data and data.Price then
-                        table.insert(items, item.Parent)
-                        print("[AutoSell] Найден предмет в GUI: " .. item.Parent.Name)
-                    end
-                end
-            end
-        end
-        
-        -- Вариант 3: Ищем в Backpack
-        local backpack = player:FindFirstChild("Backpack")
-        if backpack then
-            for _, item in pairs(backpack:GetChildren()) do
-                table.insert(items, item)
-                print("[AutoSell] Найден предмет в Backpack: " .. item.Name)
-            end
-        end
-    end)
-    
-    return items
-end
-
--- Продажа одного предмета
-local function sellItem(item)
-    pcall(function()
-        local dataRemote = game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent")
-        if dataRemote then
-            local args = {
-                {
-                    "\004",  -- Код команды продажи
-                    {
-                        item,  -- Предмет для продажи
-                        n = 1
-                    }
-                }
-            }
-            
-            dataRemote:FireServer(unpack(args))
-            print("[AutoSell] ✅ Продан предмет: " .. (item.Name or "Unknown"))
-        end
-    end)
-end
-
--- Основной цикл автопродажи
-local function autoSellCycle()
-    if not autoSellEnabled then return end
-    
-    local items = findInventoryItems()
-    
-    if #items == 0 then
-        print("[AutoSell] Нет предметов для продажи")
-        return
-    end
-    
-    print("[AutoSell] 📦 Найдено предметов: " .. #items)
-    
-    for _, item in pairs(items) do
-        sellItem(item)
-        task.wait(0.2) -- Задержка между продажами
-    end
-    
-    print("[AutoSell] ✅ Все предметы проданы")
-end
-
-local autoSellThread = nil
-local function startAutoSell()
-    if autoSellThread then return end
-    autoSellThread = task.spawn(function()
-        while autoSellEnabled do
-            autoSellCycle()
-            task.wait(2) -- Проверка каждые 2 секунды
-        end
-        autoSellThread = nil
-    end)
-end
-
-local function stopAutoSell()
-    autoSellEnabled = false
-    if autoSellThread then
-        task.cancel(autoSellThread)
-        autoSellThread = nil
     end
 end
 
@@ -942,31 +793,15 @@ local function createFluentGUI()
             end
         end
     })
-    
-    MainTab:AddToggle("AutoSell", {
-        Title = "Включить AutoSell",
-        Default = autoSellEnabled,
-        Callback = function(v)
-            autoSellEnabled = v
-            if v then
-                startAutoSell()
-            else
-                stopAutoSell()
-            end
-        end
-    })
 
     MainTab:AddButton({
         Title = "Выполнить одну итерацию AutoBuy",
         Callback = function()
-            autoBuyCycle()
-        end
-    })
-    
-    MainTab:AddButton({
-        Title = "Продать все предметы (AutoSell)",
-        Callback = function()
-            autoSellCycle()
+            if autoBuyEnabled then
+                autoBuyCycle()
+            else
+                print("[AutoBuy] Включите AutoBuy сначала")
+            end
         end
     })
 
@@ -987,7 +822,7 @@ function createSimpleGUI()
     screenGui.Parent = player:WaitForChild("PlayerGui")
 
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 300, 0, 395)
+    mainFrame.Size = UDim2.new(0, 300, 0, 350)
     mainFrame.Position = UDim2.new(0.5, -150, 0.3, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     mainFrame.BorderSizePixel = 0
@@ -1088,34 +923,10 @@ function createSimpleGUI()
             stopAutoBuy()
         end
     end)
-    
-    local sellBtn = Instance.new("TextButton")
-    sellBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    sellBtn.Position = UDim2.new(0.1, 0, 0, 260)
-    sellBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    sellBtn.BorderSizePixel = 0
-    sellBtn.Text = "AutoSell ВЫКЛ"
-    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    sellBtn.Font = Enum.Font.SourceSansBold
-    sellBtn.TextSize = 16
-    sellBtn.Parent = mainFrame
-    Instance.new("UICorner").CornerRadius = UDim.new(0, 5)
-    Instance.new("UICorner").Parent = sellBtn
-
-    sellBtn.MouseButton1Click:Connect(function()
-        autoSellEnabled = not autoSellEnabled
-        sellBtn.BackgroundColor3 = autoSellEnabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(100,100,100)
-        sellBtn.Text = autoSellEnabled and "AutoSell ВКЛ" or "AutoSell ВЫКЛ"
-        if autoSellEnabled then
-            startAutoSell()
-        else
-            stopAutoSell()
-        end
-    end)
 
     local refreshBtn = Instance.new("TextButton")
     refreshBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    refreshBtn.Position = UDim2.new(0.1, 0, 0, 305)
+    refreshBtn.Position = UDim2.new(0.1, 0, 0, 260)
     refreshBtn.BackgroundColor3 = Color3.fromRGB(60,60,80)
     refreshBtn.BorderSizePixel = 0
     refreshBtn.Text = "Обновить ESP"
