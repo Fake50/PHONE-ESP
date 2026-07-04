@@ -242,12 +242,33 @@ local Camera = workspace.CurrentCamera
 
 -- Поиск хитбокса (кликабельной части) предмета
 local function findItemHitbox(itemObj)
-    -- Возвращаем главную часть модели или первую BasePart
+    -- ПРИОРИТЕТ 1: Ищем Part с ClickDetector
+    for _, child in pairs(itemObj:GetDescendants()) do
+        if child:IsA("ClickDetector") then
+            print("[AutoBuy] 🎯 Найден ClickDetector в: " .. child.Parent.Name)
+            return child.Parent -- Возвращаем Part, который содержит ClickDetector
+        end
+    end
+    
+    -- ПРИОРИТЕТ 2: Ищем ProximityPrompt
+    for _, child in pairs(itemObj:GetDescendants()) do
+        if child:IsA("ProximityPrompt") then
+            print("[AutoBuy] 🎯 Найден ProximityPrompt в: " .. child.Parent.Name)
+            return child.Parent
+        end
+    end
+    
+    -- ПРИОРИТЕТ 3: Возвращаем главную часть модели
     if itemObj:IsA("Model") then
-        return itemObj.PrimaryPart or itemObj:FindFirstChildWhichIsA("BasePart")
+        local part = itemObj.PrimaryPart or itemObj:FindFirstChildWhichIsA("BasePart")
+        print("[AutoBuy] 🎯 Использую главную часть: " .. (part and part.Name or "не найдено"))
+        return part
     elseif itemObj:IsA("BasePart") then
+        print("[AutoBuy] 🎯 Объект сам является BasePart: " .. itemObj.Name)
         return itemObj
     end
+    
+    print("[AutoBuy] ❌ Хитбокс не найден!")
     return nil
 end
 
@@ -275,87 +296,168 @@ local function teleportToObject(targetObj)
     return true
 end
 
--- Симуляция клика ЛКМ по 3D объекту
-local function clickOnObject(targetPart)
+-- Метод 1: Клик через VirtualUser (самый надежный для Roblox)
+local function clickVirtualUser(targetPart)
     if not targetPart then return false end
     
-    -- Наводим камеру на объект
-    local targetPos = targetPart.Position
-    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-    task.wait(0.1)
+    local mouse = player:GetMouse()
     
-    -- Получаем позицию на экране для клика
-    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-    
-    if not onScreen then
-        print("[AutoBuy] Объект не видим на экране")
-        return false
-    end
-    
-    -- Симулируем клик ЛКМ через VirtualInputManager
     pcall(function()
-        -- Нажатие ЛКМ
-        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, true, game, 0)
+        -- Устанавливаем Target мыши
+        mouse.Target = targetPart
+        
+        -- Получаем позицию на экране
+        local targetPos = targetPart.Position
+        local screenPos = Camera:WorldToViewportPoint(targetPos)
+        
+        -- Используем VirtualUser для клика (работает в большинстве игр)
+        game:GetService("VirtualUser"):Button1Down(Vector2.new(screenPos.X, screenPos.Y))
         task.wait(0.05)
-        -- Отпускание ЛКМ
-        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, false, game, 0)
+        game:GetService("VirtualUser"):Button1Up(Vector2.new(screenPos.X, screenPos.Y))
     end)
     
-    print("[AutoBuy] ЛКМ клик выполнен по объекту")
+    print("[AutoBuy] Клик через VirtualUser")
     return true
 end
 
--- Альтернативный метод клика через mouse1click
-local function clickOnObjectAlt(targetPart)
+-- Метод 2: mouse1press/mouse1release
+local function clickMousePress(targetPart)
     if not targetPart then return false end
     
-    -- Ищем ClickDetector
-    local detector = targetPart:FindFirstChildOfClass("ClickDetector")
-    if not detector then
+    local mouse = player:GetMouse()
+    mouse.Target = targetPart
+    
+    pcall(function()
+        mouse1press()
+        task.wait(0.05)
+        mouse1release()
+    end)
+    
+    print("[AutoBuy] Клик через mouse1press/release")
+    return true
+end
+
+-- Метод 3: ClickDetector (УСИЛЕННАЯ ВЕРСИЯ)
+local function clickDetector(targetPart)
+    if not targetPart then return false end
+    
+    local detector = nil
+    
+    -- Ищем ClickDetector прямо в targetPart
+    if targetPart:FindFirstChildOfClass("ClickDetector") then
+        detector = targetPart:FindFirstChildOfClass("ClickDetector")
+        print("[AutoBuy] ✅ ClickDetector найден в самом объекте")
+    else
+        -- Ищем в потомках
         for _, child in pairs(targetPart:GetDescendants()) do
             if child:IsA("ClickDetector") then
                 detector = child
+                print("[AutoBuy] ✅ ClickDetector найден в потомке: " .. child.Parent.Name)
                 break
             end
         end
     end
     
     if detector then
+        -- Пробуем ВСЕ способы вызова ClickDetector
         pcall(function()
             fireclickdetector(detector)
         end)
-        print("[AutoBuy] Клик через ClickDetector")
+        task.wait(0.05)
+        
+        pcall(function()
+            fireclickdetector(detector, 0)
+        end)
+        task.wait(0.05)
+        
+        pcall(function()
+            detector:FireClick(player)
+        end)
+        task.wait(0.05)
+        
+        pcall(function()
+            detector.Parent.ClickDetector.MouseClick:Fire(player)
+        end)
+        
+        print("[AutoBuy] ✅ ClickDetector активирован всеми методами")
+        return true
+    else
+        print("[AutoBuy] ⚠️ ClickDetector не найден")
+    end
+    
+    return false
+end
+
+-- Метод 4: ProximityPrompt (если есть)
+local function clickProximity(targetPart)
+    if not targetPart then return false end
+    
+    local prompt = nil
+    
+    if targetPart:FindFirstChildOfClass("ProximityPrompt") then
+        prompt = targetPart:FindFirstChildOfClass("ProximityPrompt")
+    else
+        for _, child in pairs(targetPart:GetDescendants()) do
+            if child:IsA("ProximityPrompt") then
+                prompt = child
+                break
+            end
+        end
+    end
+    
+    if prompt then
+        pcall(function()
+            fireproximityprompt(prompt)
+        end)
+        print("[AutoBuy] Клик через ProximityPrompt")
         return true
     end
     
-    -- Если нет ClickDetector, используем mouse1click
-    local mouse = player:GetMouse()
-    mouse.Target = targetPart
-    
-    pcall(function()
-        mouse1click()
-    end)
-    
-    print("[AutoBuy] Клик через mouse1click")
-    return true
+    return false
 end
 
--- Универсальная функция клика (пробует оба метода)
+-- Универсальная функция клика (пробует ВСЕ методы)
 local function clickObject(targetObj)
     local targetPart = findItemHitbox(targetObj)
     if not targetPart then
-        print("[AutoBuy] Не найден хитбокс объекта")
+        print("[AutoBuy] ❌ Не найден хитбокс объекта")
         return false
     end
     
-    -- Пробуем первый метод (VirtualInputManager)
-    local success1 = clickOnObject(targetPart)
+    print("[AutoBuy] 🎯 Попытка клика по: " .. targetPart.Name)
+    print("[AutoBuy] 📍 Позиция: " .. tostring(targetPart.Position))
+    
+    -- Наводим камеру на объект
+    local targetPos = targetPart.Position
+    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+    task.wait(0.2)
+    
+    -- ГЛАВНЫЙ МЕТОД: ClickDetector (пробуем в первую очередь)
+    local detectorSuccess = clickDetector(targetPart)
+    if detectorSuccess then
+        print("[AutoBuy] ✅ ClickDetector сработал!")
+    end
+    task.wait(0.15)
+    
+    -- Дополнительные методы для надежности
+    clickVirtualUser(targetPart)
     task.wait(0.1)
     
-    -- Пробуем второй метод (ClickDetector/mouse1click)
-    local success2 = clickOnObjectAlt(targetPart)
+    clickMousePress(targetPart)
+    task.wait(0.1)
     
-    return success1 or success2
+    clickProximity(targetPart)
+    task.wait(0.1)
+    
+    -- Финальный метод: mouse1click
+    local mouse = player:GetMouse()
+    mouse.Target = targetPart
+    pcall(function()
+        mouse1click()
+    end)
+    print("[AutoBuy] 🖱️ mouse1click выполнен")
+    
+    return true
 end
 
 -- Поиск модели продавца "buy"
@@ -418,6 +520,25 @@ local function autoBuyCycle()
     
     -- 4. Кликаем ЛКМ по предмету
     print("[AutoBuy] 🖱️ Клик ЛКМ по предмету...")
+    print("[AutoBuy] 📋 Тип объекта: " .. bestItem.object.ClassName)
+    print("[AutoBuy] 📋 Имя объекта: " .. bestItem.object.Name)
+    
+    -- ОТЛАДКА: Выводим всех потомков для поиска ClickDetector
+    print("[AutoBuy] 🔍 Поиск ClickDetector в объекте...")
+    local foundClickDetector = false
+    for _, child in pairs(bestItem.object:GetDescendants()) do
+        if child:IsA("ClickDetector") then
+            print("[AutoBuy] ✅ НАЙДЕН ClickDetector в: " .. child.Parent.Name .. " (родитель: " .. child.Parent.ClassName .. ")")
+            foundClickDetector = true
+        end
+    end
+    if not foundClickDetector then
+        print("[AutoBuy] ⚠️ ClickDetector НЕ найден! Вывожу структуру объекта:")
+        for _, child in pairs(bestItem.object:GetChildren()) do
+            print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
+        end
+    end
+    
     if not clickObject(bestItem.object) then
         print("[AutoBuy] ❌ Не удалось кликнуть по предмету")
         return
