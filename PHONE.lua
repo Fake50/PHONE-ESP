@@ -1,5 +1,7 @@
 -- ============================================
--- ESP + AUTOBUY (ВЫБОР САМОГО ВЫГОДНОГО, КЛИК ЛКМ, ПРОДАВЕЦ)
+-- ESP + AUTOBUY + AUTOSELL
+-- Made by: Firma Mode Hub
+-- Telegram: @Firma Mode Hub
 -- ============================================
 
 -- Загружаем Fluent
@@ -598,8 +600,8 @@ local function createFluentGUI()
     end
 
     local Window = Fluent:CreateWindow({
-        Title = "ESP + AutoBuy",
-        SubTitle = "by YourName",
+        Title = "ESP + AutoBuy + AutoSell",
+        SubTitle = "by Firma Mode Hub | TG: @FirmaModeHub",
         TabWidth = 160,
         Size = UDim2.fromOffset(450, 400),
         Acrylic = false,
@@ -745,7 +747,7 @@ function createSimpleGUI()
     screenGui.Parent = player:WaitForChild("PlayerGui")
 
     local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 300, 0, 395) -- Увеличен для кнопки AutoSell
+    mainFrame.Size = UDim2.new(0, 300, 0, 410) -- Увеличено для subtitle и кнопок
     mainFrame.Position = UDim2.new(0.5, -150, 0.3, 0)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     mainFrame.BorderSizePixel = 0
@@ -756,11 +758,21 @@ function createSimpleGUI()
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 40)
     title.BackgroundTransparency = 1
-    title.Text = "⚙️ ESP + AutoBuy"
+    title.Text = "⚙️ Firma Mode Hub"
     title.TextColor3 = Color3.fromRGB(255,255,255)
     title.Font = Enum.Font.SourceSansBold
     title.TextSize = 20
     title.Parent = mainFrame
+    
+    local subtitle = Instance.new("TextLabel")
+    subtitle.Size = UDim2.new(1, 0, 0, 20)
+    subtitle.Position = UDim2.new(0, 0, 0, 25)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "TG: @FirmaModeHub"
+    subtitle.TextColor3 = Color3.fromRGB(150,150,150)
+    subtitle.Font = Enum.Font.SourceSans
+    subtitle.TextSize = 12
+    subtitle.Parent = mainFrame
 
     local function createInput(y, labelText, placeholder, callback)
         local lbl = Instance.new("TextLabel")
@@ -794,9 +806,9 @@ function createSimpleGUI()
         return box
     end
 
-    local minBox = createInput(50, "Цена ОТ:", "0", function(v) FILTER.minPrice = v; if espEnabled then updateESP() end end)
-    local maxBox = createInput(85, "Цена ДО:", "1000", function(v) FILTER.maxPrice = v; if espEnabled then updateESP() end end)
-    local resBox = createInput(120, "ReSellMulti ОТ:", "2.0", function(v) FILTER.minResellMulti = v; if espEnabled then updateESP() end end)
+    local minBox = createInput(60, "Цена ОТ:", "0", function(v) FILTER.minPrice = v; if espEnabled then updateESP() end end)
+    local maxBox = createInput(95, "Цена ДО:", "1000", function(v) FILTER.maxPrice = v; if espEnabled then updateESP() end end)
+    local resBox = createInput(130, "ReSellMulti ОТ:", "2.0", function(v) FILTER.minResellMulti = v; if espEnabled then updateESP() end end)
 
     minBox.Text = tostring(FILTER.minPrice)
     maxBox.Text = tostring(FILTER.maxPrice)
@@ -804,7 +816,7 @@ function createSimpleGUI()
 
     local toggleBtn = Instance.new("TextButton")
     toggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    toggleBtn.Position = UDim2.new(0.1, 0, 0, 170)
+    toggleBtn.Position = UDim2.new(0.1, 0, 0, 180)
     toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,0)
     toggleBtn.BorderSizePixel = 0
     toggleBtn.Text = "ESP ВКЛ"
@@ -825,7 +837,7 @@ function createSimpleGUI()
 
     local autoBtn = Instance.new("TextButton")
     autoBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    autoBtn.Position = UDim2.new(0.1, 0, 0, 215)
+    autoBtn.Position = UDim2.new(0.1, 0, 0, 225)
     autoBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
     autoBtn.BorderSizePixel = 0
     autoBtn.Text = "AutoBuy ВЫКЛ"
@@ -849,7 +861,7 @@ function createSimpleGUI()
 
     local autoSellBtn = Instance.new("TextButton")
     autoSellBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    autoSellBtn.Position = UDim2.new(0.1, 0, 0, 260)
+    autoSellBtn.Position = UDim2.new(0.1, 0, 0, 270)
     autoSellBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
     autoSellBtn.BorderSizePixel = 0
     autoSellBtn.Text = "AutoSell ВЫКЛ"
@@ -873,7 +885,7 @@ function createSimpleGUI()
 
     local refreshBtn = Instance.new("TextButton")
     refreshBtn.Size = UDim2.new(0.8, 0, 0, 35)
-    refreshBtn.Position = UDim2.new(0.1, 0, 0, 305)
+    refreshBtn.Position = UDim2.new(0.1, 0, 0, 315)
     refreshBtn.BackgroundColor3 = Color3.fromRGB(60,60,80)
     refreshBtn.BorderSizePixel = 0
     refreshBtn.Text = "Обновить ESP"
