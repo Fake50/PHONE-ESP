@@ -329,9 +329,6 @@ end
 local function clickVirtualUser(targetPart)
     if not targetPart then return false end
     
-    local mouse = player:GetMouse()
-    mouse.Target = targetPart
-    
     pcall(function()
         -- Получаем позицию на экране
         local targetPos = targetPart.Position
@@ -354,18 +351,11 @@ local function clickVirtualUser(targetPart)
     return true
 end
 
--- Метод 2: mouse1press/mouse1release (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+-- Метод 2: mouse1press/mouse1release
 local function clickMousePress(targetPart)
     if not targetPart then return false end
     
-    local mouse = player:GetMouse()
-    
     pcall(function()
-        -- Устанавливаем Target ДО клика
-        mouse.Target = targetPart
-        task.wait(0.05)
-        
-        -- Кликаем
         mouse1press()
         task.wait(0.1)
         mouse1release()
@@ -378,9 +368,6 @@ end
 -- Метод 2.5: Эмуляция UserInputService клика
 local function clickUserInput(targetPart)
     if not targetPart then return false end
-    
-    local mouse = player:GetMouse()
-    mouse.Target = targetPart
     
     pcall(function()
         local targetPos = targetPart.Position
@@ -475,7 +462,7 @@ local function clickProximity(targetPart)
     return false
 end
 
--- Универсальная функция клика (пробует ВСЕ методы + GUI + RemoteEvent)
+-- Универсальная функция клика (пробует ВСЕ методы + DataRemoteEvent)
 local function clickObject(targetObj)
     local targetPart = findItemHitbox(targetObj)
     if not targetPart then
@@ -486,18 +473,41 @@ local function clickObject(targetObj)
     print("[AutoBuy] 🎯 Попытка клика по: " .. targetPart.Name)
     print("[AutoBuy] 📍 Позиция: " .. tostring(targetPart.Position))
     
-    -- Устанавливаем mouse.Target ПЕРЕД всеми кликами
-    local mouse = player:GetMouse()
-    mouse.Target = targetPart
+    -- ГЛАВНЫЙ МЕТОД: DataRemoteEvent (из Remote Spy)
+    pcall(function()
+        local dataRemote = game:GetService("ReplicatedStorage"):WaitForChild("DataRemoteEvent", 1)
+        if dataRemote then
+            -- Формируем аргументы как в Remote Spy
+            local args = {
+                {
+                    "\005",  -- Команда взятия предмета
+                    {
+                        {targetObj},  -- Сам объект предмета
+                        n = 1
+                    }
+                }
+            }
+            
+            dataRemote:FireServer(unpack(args))
+            print("[AutoBuy] ✅ DataRemoteEvent отправлен для: " .. targetObj.Name)
+            return true
+        else
+            print("[AutoBuy] ⚠️ DataRemoteEvent не найден")
+        end
+    end)
     
-    -- Наводим камеру на объект (ВАЖНО!)
+    task.wait(0.3)
+    
+    -- Резервные методы на случай, если RemoteEvent не сработал
+    
+    -- Наводим камеру на объект
     local targetPos = targetPart.Position
     Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-    task.wait(0.4) -- Увеличил задержку
+    task.wait(0.3)
     
-    print("[AutoBuy] 🖱️ Начинаю серию кликов...")
+    print("[AutoBuy] �️ Пробую резервные методы клика...")
     
-    -- МЕТОД 1: VirtualUser (приоритетный)
+    -- МЕТОД 1: VirtualUser
     clickVirtualUser(targetPart)
     task.wait(0.2)
     
@@ -506,43 +516,16 @@ local function clickObject(targetObj)
     task.wait(0.2)
     
     -- МЕТОД 3: mouse1press/release
-    mouse.Target = targetPart
     clickMousePress(targetPart)
     task.wait(0.2)
     
     -- МЕТОД 4: mouse1click
-    mouse.Target = targetPart
     pcall(function()
         mouse1click()
     end)
     print("[AutoBuy] 🖱️ mouse1click выполнен")
-    task.wait(0.2)
     
-    -- МЕТОД 5: ClickDetector (если вдруг есть)
-    clickDetector(targetPart)
-    task.wait(0.15)
-    
-    -- МЕТОД 6: ProximityPrompt
-    clickProximity(targetPart)
-    task.wait(0.15)
-    
-    -- МЕТОД 7: Поиск RemoteEvent
-    pcall(function()
-        for _, remote in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-            if remote:IsA("RemoteEvent") then
-                local name = remote.Name:lower()
-                if name:find("pick") or name:find("take") or name:find("grab") or 
-                   name:find("select") or name:find("add") or name:find("item") then
-                    print("[AutoBuy] 🔥 Вызов RemoteEvent: " .. remote.Name)
-                    remote:FireServer(targetObj)
-                    task.wait(0.05)
-                    remote:FireServer(targetPart)
-                end
-            end
-        end
-    end)
-    
-    print("[AutoBuy] ✅ Все методы клика выполнены")
+    print("[AutoBuy] ✅ Все методы выполнены")
     return true
 end
 
