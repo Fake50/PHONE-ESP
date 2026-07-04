@@ -318,9 +318,9 @@ local function teleportToObject(targetObj)
         return false
     end
     
-    -- Телепорт близко к объекту
-    root.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 2, 0))
-    task.wait(0.2)
+    -- Телепорт ОЧЕНЬ БЛИЗКО к объекту (почти вплотную)
+    root.CFrame = CFrame.new(targetPart.Position) * CFrame.new(0, 0, 2)
+    task.wait(0.3) -- Увеличил время ожидания
     print("[AutoBuy] Телепорт выполнен к позиции")
     return true
 end
