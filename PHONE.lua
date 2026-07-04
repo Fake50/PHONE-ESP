@@ -233,27 +233,16 @@ local function updateESP()
 end
 
 -- ============================================
--- AUTOBUY (ВЫБОР ВЫГОДНОГО, ТЕЛЕПОРТ, КЛИК, ПОДТВЕРЖДЕНИЕ)
+-- AUTOBUY (ВЫБОР ВЫГОДНОГО, ТЕЛЕПОРТ, КЛИК ЛКМ)
 -- ============================================
 
 local ReplicatedStorage = game:GetService("RobloxReplicatedStorage")
-local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Camera = workspace.CurrentCamera
 
 -- Поиск хитбокса (кликабельной части) предмета
 local function findItemHitbox(itemObj)
-    -- Ищем ClickDetector
-    for _, child in pairs(itemObj:GetDescendants()) do
-        if child:IsA("ClickDetector") then
-            return child.Parent -- возвращаем Part с ClickDetector
-        end
-    end
-    -- Если нет ClickDetector, ищем ProximityPrompt
-    for _, child in pairs(itemObj:GetDescendants()) do
-        if child:IsA("ProximityPrompt") then
-            return child.Parent
-        end
-    end
-    -- Если ничего не найдено, возвращаем первую BasePart
+    -- Возвращаем главную часть модели или первую BasePart
     if itemObj:IsA("Model") then
         return itemObj.PrimaryPart or itemObj:FindFirstChildWhichIsA("BasePart")
     elseif itemObj:IsA("BasePart") then
@@ -279,160 +268,124 @@ local function teleportToObject(targetObj)
         return false
     end
     
-    -- Телепорт прямо к объекту (чуть выше, чтобы не застрять)
-    root.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 3, 0))
-    task.wait(0.15)
-    print("[AutoBuy] Телепорт выполнен")
+    -- Телепорт близко к объекту
+    root.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 2, 0))
+    task.wait(0.2)
+    print("[AutoBuy] Телепорт выполнен к позиции")
     return true
 end
 
--- Клик по хитбоксу предмета
-local function clickItemHitbox(hitbox)
-    if not hitbox then return false end
+-- Симуляция клика ЛКМ по 3D объекту
+local function clickOnObject(targetPart)
+    if not targetPart then return false end
+    
+    -- Наводим камеру на объект
+    local targetPos = targetPart.Position
+    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+    task.wait(0.1)
+    
+    -- Получаем позицию на экране для клика
+    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+    
+    if not onScreen then
+        print("[AutoBuy] Объект не видим на экране")
+        return false
+    end
+    
+    -- Симулируем клик ЛКМ через VirtualInputManager
+    pcall(function()
+        -- Нажатие ЛКМ
+        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, true, game, 0)
+        task.wait(0.05)
+        -- Отпускание ЛКМ
+        VirtualInputManager:SendMouseButtonEvent(screenPos.X, screenPos.Y, 0, false, game, 0)
+    end)
+    
+    print("[AutoBuy] ЛКМ клик выполнен по объекту")
+    return true
+end
+
+-- Альтернативный метод клика через mouse1click
+local function clickOnObjectAlt(targetPart)
+    if not targetPart then return false end
     
     -- Ищем ClickDetector
-    local detector = hitbox:FindFirstChildOfClass("ClickDetector")
+    local detector = targetPart:FindFirstChildOfClass("ClickDetector")
+    if not detector then
+        for _, child in pairs(targetPart:GetDescendants()) do
+            if child:IsA("ClickDetector") then
+                detector = child
+                break
+            end
+        end
+    end
+    
     if detector then
         pcall(function()
             fireclickdetector(detector)
         end)
-        print("[AutoBuy] Клик по хитбоксу предмета (ClickDetector)")
+        print("[AutoBuy] Клик через ClickDetector")
         return true
     end
     
-    -- Ищем ProximityPrompt
-    local prompt = hitbox:FindFirstChildOfClass("ProximityPrompt")
-    if prompt then
-        pcall(function()
-            fireproximityprompt(prompt)
-        end)
-        print("[AutoBuy] Активирован ProximityPrompt предмета")
-        return true
+    -- Если нет ClickDetector, используем mouse1click
+    local mouse = player:GetMouse()
+    mouse.Target = targetPart
+    
+    pcall(function()
+        mouse1click()
+    end)
+    
+    print("[AutoBuy] Клик через mouse1click")
+    return true
+end
+
+-- Универсальная функция клика (пробует оба метода)
+local function clickObject(targetObj)
+    local targetPart = findItemHitbox(targetObj)
+    if not targetPart then
+        print("[AutoBuy] Не найден хитбокс объекта")
+        return false
     end
     
-    print("[AutoBuy] Не найден способ взаимодействия с предметом")
-    return false
+    -- Пробуем первый метод (VirtualInputManager)
+    local success1 = clickOnObject(targetPart)
+    task.wait(0.1)
+    
+    -- Пробуем второй метод (ClickDetector/mouse1click)
+    local success2 = clickOnObjectAlt(targetPart)
+    
+    return success1 or success2
 end
 
 -- Поиск модели продавца "buy"
 local function findBuySeller()
+    -- Ищем точное совпадение "buy"
     local seller = workspace:FindFirstChild("buy")
-    if seller and seller:IsA("Model") then
+    if seller then
         print("[AutoBuy] Найден продавец 'buy'")
         return seller
     end
     
-    -- Если не нашли напрямую, ищем в потомках
+    -- Ищем в потомках workspace
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "buy" and obj:IsA("Model") then
+        if obj.Name:lower() == "buy" then
             print("[AutoBuy] Найден продавец 'buy' в потомках")
             return obj
         end
     end
     
-    print("[AutoBuy] Продавец 'buy' не найден")
+    -- Ищем модели с названиями, похожими на продавца
+    for _, obj in pairs(workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        if name:find("buy") or name:find("seller") or name:find("cashier") or name:find("npc") then
+            print("[AutoBuy] Найден возможный продавец: " .. obj.Name)
+            return obj
+        end
+    end
+    
+    print("[AutoBuy] Продавец не найден")
     return nil
-end
-
--- Клик по продавцу (модель buy)
-local function clickSeller(seller)
-    if not seller then return false end
-    
-    -- Ищем ClickDetector в модели
-    for _, child in pairs(seller:GetDescendants()) do
-        if child:IsA("ClickDetector") then
-            pcall(function()
-                fireclickdetector(child)
-            end)
-            print("[AutoBuy] Клик по продавцу (ClickDetector)")
-            return true
-        end
-    end
-    
-    -- Ищем ProximityPrompt
-    for _, child in pairs(seller:GetDescendants()) do
-        if child:IsA("ProximityPrompt") then
-            pcall(function()
-                fireproximityprompt(child)
-            end)
-            print("[AutoBuy] Активирован ProximityPrompt продавца")
-            return true
-        end
-    end
-    
-    print("[AutoBuy] Не найден способ взаимодействия с продавцом")
-    return false
-end
-
--- Проверка появления окна подтверждения покупки
-local function waitForConfirmationFrame(timeout)
-    local elapsed = 0
-    local confirmFrame = nil
-    
-    while elapsed < timeout do
-        pcall(function()
-            confirmFrame = player.PlayerGui.TopBar.CanvasGroup.MainFrames.Resale.ConfirmationPurchaseFrame
-        end)
-        
-        if confirmFrame and confirmFrame.Visible then
-            print("[AutoBuy] Окно подтверждения покупки появилось")
-            return confirmFrame
-        end
-        
-        task.wait(0.2)
-        elapsed = elapsed + 0.2
-    end
-    
-    print("[AutoBuy] Окно подтверждения не появилось")
-    return nil
-end
-
--- Нажатие кнопки подтверждения покупки в GUI
-local function clickConfirmButton(confirmFrame)
-    if not confirmFrame then return false end
-    
-    -- Ищем кнопку подтверждения (обычно называется Confirm, Accept, Buy, Yes)
-    local possibleNames = {"Confirm", "Accept", "Buy", "Yes", "Purchase", "OK"}
-    
-    for _, name in pairs(possibleNames) do
-        local button = confirmFrame:FindFirstChild(name, true)
-        if button and button:IsA("GuiButton") then
-            pcall(function()
-                for _, connection in pairs(getconnections(button.MouseButton1Click)) do
-                    connection:Fire()
-                end
-            end)
-            print("[AutoBuy] Кнопка подтверждения нажата: " .. name)
-            return true
-        end
-    end
-    
-    -- Если не нашли по именам, берем первую TextButton
-    for _, child in pairs(confirmFrame:GetDescendants()) do
-        if child:IsA("TextButton") then
-            pcall(function()
-                for _, connection in pairs(getconnections(child.MouseButton1Click)) do
-                    connection:Fire()
-                end
-            end)
-            print("[AutoBuy] Нажата первая найденная кнопка: " .. child.Name)
-            return true
-        end
-    end
-    
-    print("[AutoBuy] Кнопка подтверждения не найдена")
-    return false
-end
-
--- Использование RemoteEvent для покупки (если нужно)
-local function fireServerBulkPurchase()
-    pcall(function()
-        local bulkEvent = ReplicatedStorage:FindFirstChild("ServerSideBulkPurchaseEvent")
-        if bulkEvent and bulkEvent:IsA("RemoteEvent") then
-            bulkEvent:FireServer()
-            print("[AutoBuy] Отправлен ServerSideBulkPurchaseEvent")
-        end
-    end)
 end
 
 -- Основной цикл автобая
@@ -463,56 +416,47 @@ local function autoBuyCycle()
         return
     end
     
-    -- 4. Находим хитбокс предмета
-    local hitbox = findItemHitbox(bestItem.object)
-    if not hitbox then
-        print("[AutoBuy] ❌ Хитбокс предмета не найден")
-        return
-    end
-    
-    -- 5. Кликаем по хитбоксу предмета
-    if not clickItemHitbox(hitbox) then
+    -- 4. Кликаем ЛКМ по предмету
+    print("[AutoBuy] 🖱️ Клик ЛКМ по предмету...")
+    if not clickObject(bestItem.object) then
         print("[AutoBuy] ❌ Не удалось кликнуть по предмету")
         return
     end
     
-    task.wait(0.5) -- Ждем добавления в корзину
+    task.wait(0.7) -- Ждем добавления в корзину
     
-    -- 6. Находим продавца "buy"
+    -- 5. Находим продавца "buy"
     local seller = findBuySeller()
     if not seller then
         print("[AutoBuy] ❌ Продавец 'buy' не найден")
         return
     end
     
-    -- 7. Телепортируемся к продавцу
+    -- 6. Телепортируемся к продавцу
     if not teleportToObject(seller) then
         print("[AutoBuy] ❌ Не удалось телепортироваться к продавцу")
         return
     end
     
-    -- 8. Кликаем по продавцу
-    if not clickSeller(seller) then
+    -- 7. Кликаем ЛКМ по продавцу
+    print("[AutoBuy] 🖱️ Клик ЛКМ по продавцу...")
+    if not clickObject(seller) then
         print("[AutoBuy] ❌ Не удалось кликнуть по продавцу")
         return
     end
     
-    -- 9. Ждем появления окна подтверждения
-    local confirmFrame = waitForConfirmationFrame(3)
-    if confirmFrame then
-        task.wait(0.3)
-        -- 10. Нажимаем кнопку подтверждения
-        if clickConfirmButton(confirmFrame) then
-            print("[AutoBuy] ✅ Покупка подтверждена!")
-            fireServerBulkPurchase() -- Отправляем RemoteEvent (если нужно)
-        else
-            print("[AutoBuy] ⚠️ Не удалось нажать кнопку подтверждения")
-        end
-    else
-        print("[AutoBuy] ⚠️ Окно подтверждения не появилось, возможно предмет уже куплен")
-    end
+    task.wait(0.5)
     
-    print("[AutoBuy] 🔄 Цикл завершен\n")
+    -- 8. Пытаемся отправить RemoteEvent (если нужно)
+    pcall(function()
+        local bulkEvent = ReplicatedStorage:FindFirstChild("ServerSideBulkPurchaseEvent")
+        if bulkEvent and bulkEvent:IsA("RemoteEvent") then
+            bulkEvent:FireServer()
+            print("[AutoBuy] 📡 Отправлен ServerSideBulkPurchaseEvent")
+        end
+    end)
+    
+    print("[AutoBuy] ✅ Цикл завершен успешно\n")
 end
 
 local autoBuyThread = nil
