@@ -932,4 +932,21 @@ while wait(2) do
     if espEnabled then
         updateESP()
     end
+endnnect(function()
+        if espEnabled then updateESP() end
+    end)
+
+    print("[GUI] Простой интерфейс создан (Fluent не загружен)")
+end
+
+-- ============================================
+-- ЗАПУСК
+-- ============================================
+createFluentGUI()
+updateESP()
+
+while wait(2) do
+    if espEnabled then
+        updateESP()
+    end
 end
