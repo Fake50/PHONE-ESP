@@ -113,10 +113,18 @@ local function findAllItems()
         local data = findJsonInObject(obj)
         if data then
             if isItemRelevant(data) then
+                -- Ищем сам предмет (Model с Pants/Shirt внутри)
                 local target = obj
-                while target and not target:IsA("Model") and not target:IsA("BasePart") do
+                
+                -- Поднимаемся по иерархии до Model
+                while target and not (target:IsA("Model") or target:IsA("BasePart")) do
                     target = target.Parent
+                    if target == workspace or target == game then
+                        target = nil
+                        break
+                    end
                 end
+                
                 if target then
                     local name = data.Name or data.emaN or data["Name"] or data["emaN"] or "Без названия"
                     local price = tonumber(data.Price or data.ecirP or data["Price"] or data["ecirP"] or 0)
@@ -125,7 +133,7 @@ local function findAllItems()
                     local itemType = data.Type or data.epyT or data["Type"] or data["epyT"] or ""
                     local quality = data.Quality or data.ytilauQ or data["Quality"] or data["ytilauQ"] or ""
                     table.insert(results, {
-                        object = target,
+                        object = target, -- Сам предмет (Display_Pants_XX)
                         name = tostring(name),
                         price = price,
                         resellMulti = resell,
@@ -242,29 +250,50 @@ local Camera = workspace.CurrentCamera
 
 -- Поиск хитбокса (кликабельной части) предмета
 local function findItemHitbox(itemObj)
-    -- ПРИОРИТЕТ 1: Ищем Part с ClickDetector
+    print("[AutoBuy] 🔍 Поиск хитбокса в объекте: " .. itemObj.Name)
+    
+    -- ПРИОРИТЕТ 1: Ищем Part/MeshPart с ClickDetector внутри
     for _, child in pairs(itemObj:GetDescendants()) do
         if child:IsA("ClickDetector") then
-            print("[AutoBuy] 🎯 Найден ClickDetector в: " .. child.Parent.Name)
-            return child.Parent -- Возвращаем Part, который содержит ClickDetector
+            local parentPart = child.Parent
+            print("[AutoBuy] ✅ Найден ClickDetector! Родитель: " .. parentPart.Name .. " (" .. parentPart.ClassName .. ")")
+            return parentPart
         end
     end
     
-    -- ПРИОРИТЕТ 2: Ищем ProximityPrompt
+    -- ПРИОРИТЕТ 2: Ищем MeshPart/Part с именем типа предмета (Shirt, Pants, Hat и т.д.)
     for _, child in pairs(itemObj:GetDescendants()) do
-        if child:IsA("ProximityPrompt") then
-            print("[AutoBuy] 🎯 Найден ProximityPrompt в: " .. child.Parent.Name)
-            return child.Parent
+        if child:IsA("MeshPart") or child:IsA("Part") then
+            local name = child.Name:lower()
+            if name:find("shirt") or name:find("pants") or name:find("hat") or 
+               name:find("shoes") or name:find("item") or name:find("clothing") then
+                print("[AutoBuy] 🎯 Найден MeshPart предмета: " .. child.Name)
+                
+                -- Проверяем, есть ли у него ClickDetector
+                if child:FindFirstChildOfClass("ClickDetector") then
+                    print("[AutoBuy] ✅ У MeshPart есть ClickDetector!")
+                end
+                
+                return child
+            end
         end
     end
     
-    -- ПРИОРИТЕТ 3: Возвращаем главную часть модели
+    -- ПРИОРИТЕТ 3: Берем первый MeshPart/Part
+    for _, child in pairs(itemObj:GetDescendants()) do
+        if child:IsA("MeshPart") or child:IsA("Part") then
+            print("[AutoBuy] 🎯 Использую первый MeshPart: " .. child.Name)
+            return child
+        end
+    end
+    
+    -- ПРИОРИТЕТ 4: Сам объект
     if itemObj:IsA("Model") then
         local part = itemObj.PrimaryPart or itemObj:FindFirstChildWhichIsA("BasePart")
-        print("[AutoBuy] 🎯 Использую главную часть: " .. (part and part.Name or "не найдено"))
+        print("[AutoBuy] 🎯 Использую PrimaryPart модели")
         return part
     elseif itemObj:IsA("BasePart") then
-        print("[AutoBuy] 🎯 Объект сам является BasePart: " .. itemObj.Name)
+        print("[AutoBuy] 🎯 Объект сам BasePart")
         return itemObj
     end
     
@@ -511,6 +540,7 @@ local function autoBuyCycle()
     local bestItem = items[1]
     print(string.format("[AutoBuy] ✅ Выбран предмет: %s (💰 %d, 🔄 x%.1f)", 
         bestItem.name, bestItem.price, bestItem.resellMulti))
+    print("[AutoBuy] 📦 Объект: " .. bestItem.object.Name .. " (" .. bestItem.object.ClassName .. ")")
     
     -- 3. Телепортируемся к предмету
     if not teleportToObject(bestItem.object) then
@@ -520,24 +550,6 @@ local function autoBuyCycle()
     
     -- 4. Кликаем ЛКМ по предмету
     print("[AutoBuy] 🖱️ Клик ЛКМ по предмету...")
-    print("[AutoBuy] 📋 Тип объекта: " .. bestItem.object.ClassName)
-    print("[AutoBuy] 📋 Имя объекта: " .. bestItem.object.Name)
-    
-    -- ОТЛАДКА: Выводим всех потомков для поиска ClickDetector
-    print("[AutoBuy] 🔍 Поиск ClickDetector в объекте...")
-    local foundClickDetector = false
-    for _, child in pairs(bestItem.object:GetDescendants()) do
-        if child:IsA("ClickDetector") then
-            print("[AutoBuy] ✅ НАЙДЕН ClickDetector в: " .. child.Parent.Name .. " (родитель: " .. child.Parent.ClassName .. ")")
-            foundClickDetector = true
-        end
-    end
-    if not foundClickDetector then
-        print("[AutoBuy] ⚠️ ClickDetector НЕ найден! Вывожу структуру объекта:")
-        for _, child in pairs(bestItem.object:GetChildren()) do
-            print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
-        end
-    end
     
     if not clickObject(bestItem.object) then
         print("[AutoBuy] ❌ Не удалось кликнуть по предмету")
