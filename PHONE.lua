@@ -57,17 +57,34 @@ end
 -- Получение информации о клане
 local function getMyClan()
     local success, result = pcall(function()
-        return ReplicatedStorage:WaitForChild("ClanRemotes"):WaitForChild("GetMyClan"):InvokeServer()
+        -- Пробуем разные возможные пути к RemoteFunction клана
+        local remotes = ReplicatedStorage:FindFirstChild("ClanRemotes") or 
+                        ReplicatedStorage:FindFirstChild("Remotes") or
+                        ReplicatedStorage:FindFirstChild("NetworkRemotes")
+        
+        if not remotes then
+            warn("[Auto Invite] ClanRemotes не найдены!")
+            return nil
+        end
+        
+        local getMyClanRemote = remotes:FindFirstChild("GetMyClan") or
+                                 remotes:FindFirstChild("GetClan") or
+                                 remotes:FindFirstChild("GetPlayerClan")
+        
+        if getMyClanRemote and getMyClanRemote:IsA("RemoteFunction") then
+            return getMyClanRemote:InvokeServer()
+        end
+        
+        return nil
     end)
-    return success and result or nil
-end
-
--- Проверка Rainbow статуса
-local function getRainbowStatus()
-    local success, result = pcall(function()
-        return ReplicatedStorage:WaitForChild("ClanRemotes"):WaitForChild("GetRainbowStatus"):InvokeServer()
-    end)
-    return success and result or nil
+    
+    if success and result then
+        notify("✓ Клан найден", "success")
+        return result
+    else
+        notify("⚠ Не удалось получить информацию о клане", "warning")
+        return nil
+    end
 end
 
 -- Отправка приглашения игроку
@@ -77,8 +94,32 @@ local function invitePlayer(playerName)
     end
     
     local success, err = pcall(function()
-        local args = {playerName}
-        ReplicatedStorage:WaitForChild("ClanRemotes"):WaitForChild("InvitePlayer"):InvokeServer(unpack(args))
+        -- Ищем правильный путь к RemoteEvent/RemoteFunction
+        local remotes = ReplicatedStorage:FindFirstChild("ClanRemotes") or 
+                        ReplicatedStorage:FindFirstChild("Remotes") or
+                        ReplicatedStorage:FindFirstChild("NetworkRemotes")
+        
+        if not remotes then
+            error("ClanRemotes не найдены!")
+        end
+        
+        -- Пробуем разные варианты названий
+        local inviteRemote = remotes:FindFirstChild("InvitePlayer") or
+                             remotes:FindFirstChild("InviteToClan") or
+                             remotes:FindFirstChild("SendInvite") or
+                             remotes:FindFirstChild("ClanInvite")
+        
+        if not inviteRemote then
+            error("InvitePlayer RemoteEvent не найден!")
+        end
+        
+        -- Вызываем в зависимости от типа
+        if inviteRemote:IsA("RemoteFunction") then
+            return inviteRemote:InvokeServer(playerName)
+        elseif inviteRemote:IsA("RemoteEvent") then
+            inviteRemote:FireServer(playerName)
+            return true
+        end
     end)
     
     if success then
@@ -90,7 +131,7 @@ local function invitePlayer(playerName)
         return true
     else
         stats.failedInvites = stats.failedInvites + 1
-        notify("✗ Ошибка приглашения: " .. playerName, "error")
+        notify("✗ Ошибка: " .. tostring(err), "error")
         updateStats()
         return false, err
     end
@@ -385,14 +426,39 @@ end
 
 -- Инициализация скрипта
 local function initialize()
+    -- Диагностика: выводим все RemoteEvents/RemoteFunctions
+    print("=== ДИАГНОСТИКА AUTO INVITE ===")
+    print("Поиск RemoteEvents для клана...")
+    
+    local function scanFolder(folder, depth)
+        depth = depth or 0
+        if depth > 3 then return end
+        
+        for _, child in pairs(folder:GetChildren()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                local path = child:GetFullName()
+                if path:lower():find("clan") or path:lower():find("invite") then
+                    print(string.format("  [%s] %s", child.ClassName, path))
+                end
+            elseif child:IsA("Folder") or child:IsA("Model") then
+                scanFolder(child, depth + 1)
+            end
+        end
+    end
+    
+    scanFolder(ReplicatedStorage)
+    print("=== КОНЕЦ ДИАГНОСТИКИ ===")
+    
     notify("🚀 Auto Invite загружен!", "success")
     
     -- Проверяем наличие клана
+    task.wait(1)
     local myClan = getMyClan()
     if myClan then
-        notify("✓ Клан найден", "success")
+        notify("✓ Клан найден: " .. tostring(myClan.Name or "Unknown"), "success")
     else
-        notify("⚠ Клан не найден", "warning")
+        notify("⚠ Клан не найден или ошибка", "warning")
+        notify("ℹ Проверьте консоль (F9) для диагностики", "info")
     end
     
     -- Создание GUI
@@ -408,7 +474,7 @@ local function initialize()
     
     Fluent:Notify({
         Title = "Auto Invite",
-        Content = "Скрипт успешно загружен!",
+        Content = "Скрипт успешно загружен! Проверьте консоль (F9) для диагностики.",
         Duration = 5
     })
 end
