@@ -1,12 +1,14 @@
--- Auto Clan Invite Script with WindUI
+-- Auto Clan Invite Script with Fluent UI
 -- Автоматически отправляет приглашения в клан всем игрокам на сервере
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- Загрузка WindUI
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Wind-Explorer/WindUI/main/source.lua"))()
+-- Загрузка Fluent UI
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 -- Настройки
 local CONFIG = {
@@ -169,46 +171,38 @@ end
 
 -- Создание GUI
 local function createGUI()
-    local window = WindUI:CreateWindow({
-        Title = "Auto Clan Invite",
-        Icon = "rbxassetid://10734950309",
-        Author = "by Script",
-        Folder = "AutoInviteConfig",
-        Size = UDim2.fromOffset(480, 520),
-        KeySystem = {
-            Key = "test123",
-            Note = "Тестовый ключ: test123",
-            URL = "https://example.com/key",
-            SaveKey = true
-        },
-        Transparent = false,
+    local Window = Fluent:CreateWindow({
+        Title = "Auto Clan Invite " .. Fluent.Version,
+        SubTitle = "by Script",
+        TabWidth = 160,
+        Size = UDim2.fromOffset(580, 460),
+        Acrylic = true,
         Theme = "Dark",
-        SideBarWidth = 170,
-        HasOutline = true
+        MinimizeKey = Enum.KeyCode.LeftControl
     })
+
+    local Tabs = {
+        Main = Window:AddTab({ Title = "Главная", Icon = "home" }),
+        Settings = Window:AddTab({ Title = "Настройки", Icon = "settings" }),
+        Players = Window:AddTab({ Title = "Игроки", Icon = "users" }),
+        Logs = Window:AddTab({ Title = "Логи", Icon = "list" }),
+        Info = Window:AddTab({ Title = "Инфо", Icon = "info" })
+    }
 
     -- Вкладка: Главная
-    local mainTab = window:Tab({
-        Name = "Главная",
-        Icon = "rbxassetid://10734950309",
-        Color = Color3.fromRGB(150, 120, 255)
-    })
+    local MainSection = Tabs.Main:AddSection("Управление")
 
-    local mainSection = mainTab:Section({
-        Name = "Управление"
-    })
-
-    -- Кнопка: Пригласить всех
-    mainSection:Button({
-        Name = "Пригласить всех игроков",
+    Tabs.Main:AddButton({
+        Title = "Пригласить всех игроков",
+        Description = "Отправить приглашения всем игрокам",
         Callback = function()
             inviteAllPlayers()
         end
     })
 
-    -- Кнопка: Очистить список
-    mainSection:Button({
-        Name = "Очистить список приглашенных",
+    Tabs.Main:AddButton({
+        Title = "Очистить список приглашенных",
+        Description = "Сбросить всю статистику",
         Callback = function()
             invitedPlayers = {}
             stats.totalInvited = 0
@@ -220,17 +214,16 @@ local function createGUI()
     })
 
     -- Статистика
-    local statsSection = mainTab:Section({
-        Name = "Статистика"
-    })
+    local StatsSection = Tabs.Main:AddSection("Статистика")
 
-    local statsLabel = statsSection:Label({
-        Text = "Загрузка статистики..."
+    local StatsParagraph = Tabs.Main:AddParagraph({
+        Title = "Статистика приглашений",
+        Content = "Загрузка статистики..."
     })
 
     -- Функция обновления статистики
     _G.UpdateInviteStats = function(data)
-        statsLabel:Set(string.format(
+        StatsParagraph:SetDesc(string.format(
             "📊 Всего приглашено: %d\n" ..
             "✅ Успешно: %d\n" ..
             "❌ Ошибок: %d\n" ..
@@ -243,71 +236,91 @@ local function createGUI()
     end
 
     -- Вкладка: Настройки
-    local settingsTab = window:Tab({
-        Name = "Настройки",
-        Icon = "rbxassetid://10734950682",
-        Color = Color3.fromRGB(255, 170, 0)
-    })
+    local SettingsSection = Tabs.Settings:AddSection("Параметры приглашений")
 
-    local settingsSection = settingsTab:Section({
-        Name = "Параметры приглашений"
-    })
-
-    -- Переключатель: Авто приглашение
-    settingsSection:Toggle({
-        Name = "Авто-приглашение новых игроков",
-        Value = CONFIG.AUTO_REINVITE,
+    Tabs.Settings:AddToggle("AutoInvite", {
+        Title = "Авто-приглашение новых игроков",
+        Description = "Автоматически приглашать новых игроков",
+        Default = CONFIG.AUTO_REINVITE,
         Callback = function(value)
             CONFIG.AUTO_REINVITE = value
             notify(value and "✓ Авто-приглашение включено" or "✗ Авто-приглашение выключено", "info")
         end
     })
 
-    -- Переключатель: Исключить друзей
-    settingsSection:Toggle({
-        Name = "Исключить друзей",
-        Value = CONFIG.EXCLUDE_FRIENDS,
+    Tabs.Settings:AddToggle("ExcludeFriends", {
+        Title = "Исключить друзей",
+        Description = "Не приглашать друзей в клан",
+        Default = CONFIG.EXCLUDE_FRIENDS,
         Callback = function(value)
             CONFIG.EXCLUDE_FRIENDS = value
             notify(value and "✓ Друзья исключены" or "✗ Друзья не исключаются", "info")
         end
     })
 
-    -- Переключатель: Уведомления
-    settingsSection:Toggle({
-        Name = "Уведомления",
-        Value = CONFIG.NOTIFY,
+    Tabs.Settings:AddToggle("Notifications", {
+        Title = "Уведомления",
+        Description = "Показывать уведомления о действиях",
+        Default = CONFIG.NOTIFY,
         Callback = function(value)
             CONFIG.NOTIFY = value
         end
     })
 
-    -- Слайдер: Задержка между приглашениями
-    settingsSection:Slider({
-        Name = "Задержка между приглашениями (сек)",
+    Tabs.Settings:AddSlider("Delay", {
+        Title = "Задержка между приглашениями",
+        Description = "Задержка в секундах",
+        Default = CONFIG.DELAY_BETWEEN_INVITES,
         Min = 0.1,
         Max = 5,
-        Value = CONFIG.DELAY_BETWEEN_INVITES,
+        Rounding = 1,
         Callback = function(value)
             CONFIG.DELAY_BETWEEN_INVITES = value
             notify(string.format("⏱ Задержка: %.1f сек", value), "info")
         end
     })
 
+    -- Вкладка: Игроки
+    local PlayersSection = Tabs.Players:AddSection("Игроки на сервере")
+
+    local PlayersList = Tabs.Players:AddParagraph({
+        Title = "Список игроков",
+        Content = "Загрузка..."
+    })
+
+    -- Обновление списка игроков
+    local function updatePlayersList()
+        local playerNames = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local status = invitedPlayers[player.Name] and "✓" or "○"
+                table.insert(playerNames, string.format("%s %s", status, player.Name))
+            end
+        end
+        
+        PlayersList:SetTitle(string.format("Игроков: %d", #playerNames))
+        PlayersList:SetDesc(#playerNames > 0 and table.concat(playerNames, "\n") or "Нет игроков")
+    end
+
+    Tabs.Players:AddButton({
+        Title = "Обновить список",
+        Description = "Обновить список игроков",
+        Callback = updatePlayersList
+    })
+
+    -- Автообновление каждые 5 секунд
+    task.spawn(function()
+        while task.wait(5) do
+            updatePlayersList()
+        end
+    end)
+
     -- Вкладка: Логи
-    local logsTab = window:Tab({
-        Name = "Логи",
-        Icon = "rbxassetid://10747372992",
-        Color = Color3.fromRGB(0, 200, 255)
-    })
+    local LogsSection = Tabs.Logs:AddSection("История действий")
 
-    local logsSection = logsTab:Section({
-        Name = "История действий"
-    })
-
-    local logText = logsSection:Paragraph({
+    local LogsParagraph = Tabs.Logs:AddParagraph({
         Title = "Лог событий",
-        Desc = "Ожидание событий..."
+        Content = "Ожидание событий..."
     })
 
     local logs = {}
@@ -324,97 +337,50 @@ local function createGUI()
             table.remove(logs, maxLogs + 1)
         end
         
-        logText:Set({
-            Title = "Лог событий",
-            Desc = table.concat(logs, "\n")
-        })
+        LogsParagraph:SetDesc(table.concat(logs, "\n"))
     end
 
-    -- Кнопка очистки логов
-    logsSection:Button({
-        Name = "Очистить логи",
+    Tabs.Logs:AddButton({
+        Title = "Очистить логи",
+        Description = "Очистить всю историю",
         Callback = function()
             logs = {}
-            logText:Set({
-                Title = "Лог событий",
-                Desc = "Логи очищены"
-            })
+            LogsParagraph:SetDesc("Логи очищены")
         end
     })
-
-    -- Вкладка: Список игроков
-    local playersTab = window:Tab({
-        Name = "Игроки",
-        Icon = "rbxassetid://10747373176",
-        Color = Color3.fromRGB(100, 255, 150)
-    })
-
-    local playersSection = playersTab:Section({
-        Name = "Игроки на сервере"
-    })
-
-    local playersList = playersSection:Paragraph({
-        Title = "Список игроков",
-        Desc = "Загрузка..."
-    })
-
-    -- Обновление списка игроков
-    local function updatePlayersList()
-        local playerNames = {}
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                local status = invitedPlayers[player.Name] and "✓" or "○"
-                table.insert(playerNames, string.format("%s %s", status, player.Name))
-            end
-        end
-        
-        playersList:Set({
-            Title = string.format("Игроков: %d", #playerNames),
-            Desc = #playerNames > 0 and table.concat(playerNames, "\n") or "Нет игроков"
-        })
-    end
-
-    -- Кнопка обновления списка
-    playersSection:Button({
-        Name = "Обновить список",
-        Callback = updatePlayersList
-    })
-
-    -- Автообновление каждые 5 секунд
-    spawn(function()
-        while wait(5) do
-            updatePlayersList()
-        end
-    end)
 
     -- Вкладка: Информация
-    local infoTab = window:Tab({
-        Name = "Инфо",
-        Icon = "rbxassetid://10734923549",
-        Color = Color3.fromRGB(255, 100, 100)
+    local InfoSection = Tabs.Info:AddSection("О скрипте")
+
+    Tabs.Info:AddParagraph({
+        Title = "Auto Clan Invite v2.0",
+        Content = "Автоматическое приглашение игроков в клан\n\n" ..
+                   "Функции:\n" ..
+                   "• Автоматические приглашения\n" ..
+                   "• Отслеживание новых игроков\n" ..
+                   "• Настраиваемая задержка\n" ..
+                   "• Статистика и логи\n" ..
+                   "• Список игроков\n\n" ..
+                   "Создано для игры Stand For All Time"
     })
 
-    local infoSection = infoTab:Section({
-        Name = "О скрипте"
-    })
-
-    infoSection:Paragraph({
-        Title = "Auto Clan Invite",
-        Desc = "Автоматическое приглашение игроков в клан\n\n" ..
-               "Функции:\n" ..
-               "• Автоматические приглашения\n" ..
-               "• Отслеживание новых игроков\n" ..
-               "• Настраиваемая задержка\n" ..
-               "• Статистика и логи\n" ..
-               "• Список игроков\n\n" ..
-               "Версия: 2.0"
-    })
+    -- Настройка SaveManager и InterfaceManager
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({})
+    InterfaceManager:SetFolder("AutoInviteConfig")
+    SaveManager:SetFolder("AutoInviteConfig/saves")
+    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+    SaveManager:BuildConfigSection(Tabs.Settings)
 
     -- Начальное обновление
     updateStats()
     updatePlayersList()
     
-    return window
+    Window:SelectTab(1)
+    
+    return Window
 end
 
 -- Инициализация скрипта
@@ -438,9 +404,14 @@ local function initialize()
     -- Первичное обновление статистики
     updateStats()
     
-    notify("� Используйте GUI для управления", "info")
+    notify("✓ Используйте GUI для управления", "info")
+    
+    Fluent:Notify({
+        Title = "Auto Invite",
+        Content = "Скрипт успешно загружен!",
+        Duration = 5
+    })
 end
 
 -- Запуск
 initialize()
-
