@@ -1,12 +1,446 @@
---[[
- .____                  ________ ___.    _____                           __                
- |    |    __ _______   \_____  \\_ |___/ ____\_ __  ______ ____ _____ _/  |_  ___________ 
- |    |   |  |  \__  \   /   |   \| __ \   __\  |  \/  ___// ___\\__  \\   __\/  _ \_  __ \
- |    |___|  |  // __ \_/    |    \ \_\ \  | |  |  /\___ \\  \___ / __ \|  | (  <_> )  | \/
- |_______ \____/(____  /\_______  /___  /__| |____//____  >\___  >____  /__|  \____/|__|   
-         \/          \/         \/    \/                \/     \/     \/                   
-          \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
+-- Auto Clan Invite Script with WindUI
+-- Автоматически отправляет приглашения в клан всем игрокам на сервере
 
-]]--
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
 
-local v0=nil;local v1=false;local function v2() local v34=0;local v35;local v36;while true do if (v34==(0 -0)) then v35,v36=pcall(function() local v247=0;local v248;local v249;while true do if (v247==(0 + 0)) then v248=game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua");v249=loadstring(v248);v247=1;end if (v247==(403 -(108 + 294))) then if v249 then local v340=1489 -(570 + 919) ;while true do if (v340==0) then v0=v249();return v0;end end end break;end end end);if (v35 and v36) then local v303=0 -0 ;while true do if ((811 -(569 + 242))==v303) then v1=true;print("[Fluent] Загружен с GitHub");break;end end else print("[Fluent] Не удалось загрузить, используем встроенный GUI");end break;end end end v2();local v3=game:GetService("HttpService");local v4=game:GetService("Players");local v5=game:GetService("UserInputService");local v6=v4.LocalPlayer;local v7=true;local v8=false;local v9=false;local v10={minPrice=0,maxPrice=2880 -1880 ,minResellMulti=2,excludedQualities={"Poor","Worn"}};local function v11(v37) if ( not v37 or (type(v37)~="string")) then return nil;end if ( #v37==(1024 -(706 + 318))) then return nil;end local v38,v39=string.sub(v37,1252 -(721 + 530) ,1),string.sub(v37, -(1272 -(945 + 326)));if ((v38=="}") and (v39=="{")) then v37=string.reverse(v37);end local v40,v41=pcall(function() return v3:JSONDecode(v37);end);if (v40 and v41) then return v41;else return nil;end end local function v12(v42) local v43;if v42:IsA("StringValue") then v43=v42.Value;elseif v42:IsA("ObjectValue") then v43=tostring(v42.Value);elseif (v42:IsA("IntValue") or v42:IsA("NumberValue")) then v43=tostring(v42.Value);else v43=v42:GetAttribute("Value");end if (v43 and (type(v43)=="string") and string.find(v43,"{")) then local v202=0;local v203;while true do if (v202==0) then v203=v11(v43);if v203 then return v203;end break;end end end for v176,v177 in pairs(v42:GetAttributes()) do if ((type(v177)=="string") and string.find(v177,"{")) then local v210=v11(v177);if v210 then return v210;end end end return nil;end local function v13(v44) local v45=0 -0 ;local v46;local v47;local v48;while true do if (v45==3) then return true;end if (v45==(2 + 0)) then if ((v46<v10.minPrice) or (v46>v10.maxPrice)) then return false;end if (v47<v10.minResellMulti) then return false;end v45=703 -(271 + 429) ;end if (v45==(1 + 0)) then v48=v44.Quality or v44.ytilauQ or v44['Quality'] or v44['ytilauQ'] or "" ;if ((v48~="") and table.find(v10.excludedQualities,v48)) then return false;end v45=1502 -(1408 + 92) ;end if (v45==(1086 -(461 + 625))) then v46=tonumber(v44.Price or v44.ecirP or v44['Price'] or v44['ecirP'] or (1288 -(993 + 295)) );v47=tonumber(v44.ReSellMulti or v44.itluMlleSeR or v44['ReSellMulti'] or v44['itluMlleSeR'] or (0 + 0) );v45=1172 -(418 + 753) ;end end end local function v14() local v49={};for v178,v179 in pairs(workspace:GetDescendants()) do local v180=0;local v181;while true do if ((0 + 0)==v180) then v181=v12(v179);if v181 then if v13(v181) then local v338=v179;while v338 and  not (v338:IsA("Model") or v338:IsA("BasePart"))  do v338=v338.Parent;if ((v338==workspace) or (v338==game)) then v338=nil;break;end end if v338 then local v353=0 + 0 ;local v354;local v355;local v356;local v357;local v358;local v359;while true do if (v353==(1 + 1)) then v358=v181.Type or v181.epyT or v181['Type'] or v181['epyT'] or "" ;v359=v181.Quality or v181.ytilauQ or v181['Quality'] or v181['ytilauQ'] or "" ;v353=1 + 2 ;end if (v353==3) then table.insert(v49,{object=v338,name=tostring(v354),price=v355,resellMulti=v356,rarity=tostring(v357),type=tostring(v358),quality=tostring(v359)});break;end if (v353==(530 -(406 + 123))) then v356=tonumber(v181.ReSellMulti or v181.itluMlleSeR or v181['ReSellMulti'] or v181['itluMlleSeR'] or 0 );v357=v181.Rarity or v181.ytiraR or v181['Rarity'] or v181['ytiraR'] or "Common" ;v353=2;end if ((1769 -(1749 + 20))==v353) then v354=v181.Name or v181.emaN or v181['Name'] or v181['emaN'] or "Без названия" ;v355=tonumber(v181.Price or v181.ecirP or v181['Price'] or v181['ecirP'] or 0 );v353=1 + 0 ;end end end end end break;end end end return v49;end local function v15() for v182,v183 in pairs(workspace:GetDescendants()) do if v183:FindFirstChild("ESP_Billboard") then v183.ESP_Billboard:Destroy();end end end local v16={Common=Color3.new(1323 -(1249 + 73) ,1,1 + 0 ),Uncommon=Color3.new(1145 -(466 + 679) ,2 -1 ,0),Rare=Color3.new(0,150/255 ,2 -1 ),Epic=Color3.new(200/(2155 -(106 + 1794)) ,0 + 0 ,1),Legendary=Color3.new(1,(46 + 134)/255 ,0 -0 ),Purple=Color3.new((541 -341)/(369 -(4 + 110)) ,584 -(57 + 527) ,1428 -(41 + 1386) )};local function v17(v50) local v51=103 -(17 + 86) ;local v52;local v53;local v54;while true do if ((2 + 0)==v51) then v54=nil;if v50:IsA("BasePart") then v54=v50.Position;elseif v50:IsA("Model") then if v50.PrimaryPart then v54=v50.PrimaryPart.Position;else local v343=0;local v344;while true do if (v343==(0 -0)) then v344=v50:FindFirstChildWhichIsA("BasePart");if v344 then v54=v344.Position;end break;end end end end v51=8 -5 ;end if (v51==1) then v53=v52:FindFirstChild("HumanoidRootPart") or v52:FindFirstChild("Torso") ;if  not v53 then return nil;end v51=2;end if (v51==3) then if  not v54 then return nil;end return (v53.Position-v54).Magnitude;end if (v51==(166 -(122 + 44))) then v52=v6.Character;if  not v52 then return nil;end v51=1;end end end local function v18(v55,v56) local v57=0;local v58;local v59;local v60;local v61;local v62;local v63;local v64;while true do if (v57==(2 -0)) then v61.Size=UDim2.new(1,0 -0 ,1 + 0 ,0 + 0 );v61.BackgroundTransparency=1 -0 ;v61.Parent=v60;v62=Instance.new("TextLabel");v62.Size=UDim2.new(1,0,65.5 -(30 + 35) ,0 + 0 );v62.Position=UDim2.new(1257 -(1043 + 214) ,0 -0 ,1212 -(323 + 889) ,0);v57=3;end if ((2 -1)==v57) then v60.Adornee=v55;v60.Size=UDim2.new(580 -(361 + 219) ,620 -(53 + 267) ,0,16 + 54 );v60.StudsOffset=Vector3.new(413 -(15 + 398) ,4,982 -(18 + 964) );v60.AlwaysOnTop=true;v60.Parent=v55;v61=Instance.new("Frame");v57=7 -5 ;end if (v57==(0 + 0)) then if ( not v55 or  not v55.Parent) then return;end if v55:FindFirstChild("ESP_Billboard") then return;end v58=v17(v55);v59=(v58 and string.format("%.0f м",v58)) or "" ;v60=Instance.new("BillboardGui");v60.Name="ESP_Billboard";v57=1 + 0 ;end if (v57==(855 -(20 + 830))) then v64.Text="["   .. v56.type   .. "]  💰 "   .. v56.price   .. "  |  🔄 x"   .. string.format("%.1f",v56.resellMulti)   .. "  |  "   .. v59 ;v64.TextColor3=Color3.new((157 + 43)/255 ,200/(381 -(116 + 10)) ,(15 + 185)/255 );v64.Font=Enum.Font.SourceSans;v64.TextSize=752 -(542 + 196) ;v64.TextStrokeTransparency=0.3 -0 ;v64.Parent=v61;break;end if (v57==(1 + 2)) then v62.BackgroundTransparency=1 + 0 ;v62.Text=v56.name;v63=v16[v56.rarity];if v63 then v62.TextColor3=v63;else v62.TextColor3=Color3.new(1 + 0 ,1,2 -1 );end v62.Font=Enum.Font.SourceSansBold;v62.TextSize=16;v57=9 -5 ;end if (v57==(1555 -(1126 + 425))) then v62.TextStrokeTransparency=405.3 -(118 + 287) ;v62.Parent=v61;v64=Instance.new("TextLabel");v64.Size=UDim2.new(3 -2 ,1121 -(118 + 1003) ,0.5 -0 ,377 -(142 + 235) );v64.Position=UDim2.new(0 -0 ,0 + 0 ,977.5 -(553 + 424) ,0 -0 );v64.BackgroundTransparency=1 + 0 ;v57=5;end end end local function v19() local v65=0;local v66;while true do if (v65==(1 + 0)) then v66=v14();for v250,v251 in pairs(v66) do v18(v251.object,v251);end break;end if (v65==(0 + 0)) then v15();if  not v7 then return;end v65=1;end end end workspace.DescendantRemoving:Connect(function(v67) if v67.Name:find("Display_") then task.delay(0.3,function() if v7 then v19();end end);end end);local v20=game:GetService("RobloxReplicatedStorage");local function v21(v68) local v69=0;local v70;local v71;local v72;while true do if (v69==(2 + 2)) then print("[AutoBuy] Телепорт выполнен");return true;end if (v69==(0 + 0)) then v70=v6.Character;if  not v70 then return false;end v69=2 -1 ;end if (v69==2) then v72=v68;if v68:IsA("Model") then v72=v68.PrimaryPart or v68:FindFirstChildWhichIsA("BasePart") ;end v69=3;end if (v69==1) then v71=v70:FindFirstChild("HumanoidRootPart");if  not v71 then return false;end v69=5 -3 ;end if (v69==(6 -3)) then if ( not v72 or  not v72:IsA("BasePart")) then local v307=0 + 0 ;while true do if (v307==(0 -0)) then print("[AutoBuy] Не удалось найти позицию для телепорта");return false;end end end v71.CFrame=CFrame.new(v72.Position) * CFrame.new(0,753 -(239 + 514) ,2) ;v69=2 + 2 ;end end end local function v22(v73) local v74=1329 -(797 + 532) ;local v75;while true do if (v74==(0 + 0)) then print("[AutoBuy] 🎯 Взятие предмета через RemoteEvent");v75=pcall(function() local v252=game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent");if v252 then local v319=0 + 0 ;local v320;while true do if (v319==(4 -2)) then print("[AutoBuy] ✅ DataRemoteEvent отправлен!");return true;end if (v319==(1202 -(373 + 829))) then if ( not v73 or  not v73.Parent) then print("[AutoBuy] ⚠️ Объект предмета не найден в workspace");return false;end v320={{"\003",{v73,n=1 -0 }}};v319=1;end if (v319==(1 -0)) then print("[AutoBuy] 📡 Отправляю DataRemoteEvent для: "   .. v73.Name );v252:FireServer(unpack(v320));v319=2;end end else print("[AutoBuy] ❌ DataRemoteEvent не найден");return false;end end);v74=239 -(64 + 174) ;end if (v74==(1 + 0)) then return v75;end end end local function v23(v76) local v77=0 -0 ;local v78;local v79;local v80;while true do if (v77==(338 -(144 + 192))) then print("[AutoBuy] 🏪 Магазин предмета: "   .. v79.Name );v80=nil;v77=3;end if (v77==(219 -(42 + 174))) then pcall(function() local v253=0 + 0 ;while true do if (v253==(0 + 0)) then v80=v79:FindFirstChild("NPC");if v80 then v80=v80:FindFirstChild("Buy");end break;end end end);if v80 then print("[AutoBuy] ✅ Найден продавец Buy в магазине: "   .. v79.Name );return v80;else local v308=0;while true do if (v308==(0 + 0)) then print("[AutoBuy] ❌ Продавец Buy не найден в магазине: "   .. v79.Name );return nil;end end end break;end if (v77==(1504 -(363 + 1141))) then v78=v76;v79=nil;v77=1581 -(1183 + 397) ;end if (v77==(2 -1)) then while v78 and v78.Parent  do if (v78.Parent.Name=="ActiveShops") then v79=v78;break;end v78=v78.Parent;end if  not v79 then print("[AutoBuy] ❌ Не удалось определить магазин предмета");return nil;end v77=2;end end end local function v24() local v81=0 + 0 ;local v82;local v83;local v84;local v85;while true do if (v81==(1 + 0)) then table.sort(v82,function(v255,v256) local v257=v255.resellMulti/math.max(v255.price,1) ;local v258=v256.resellMulti/math.max(v256.price,1976 -(1913 + 62) ) ;return v257>v258 ;end);v83=v82[1 + 0 ];print(string.format("[AutoBuy] ✅ Выбран предмет: %s (💰 %d, 🔄 x%.1f)",v83.name,v83.price,v83.resellMulti));v81=5 -3 ;end if (v81==(1938 -(565 + 1368))) then if  not v85 then local v309=0 -0 ;while true do if (v309==(1661 -(1477 + 184))) then print("[AutoBuy] ❌ Ошибка при покупке");return;end end end if v7 then task.delay(0.3 -0 ,v19);end print("[AutoBuy] ✅ Цикл завершен\n");break;end if (v81==(4 + 0)) then if  not v21(v84) then local v310=856 -(564 + 292) ;while true do if (v310==(0 -0)) then print("[AutoBuy] ❌ Не удалось телепортироваться к продавцу");return;end end end print("[AutoBuy] 💳 Покупаю через продавца...");v85=pcall(function() local v259=0 -0 ;local v260;while true do if (v259==0) then v260=game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent");if v260 then local v345={{"\006",{v84,n=477 -(41 + 435) }}};print("[AutoBuy] 📡 Покупка через RemoteEvent");v260:FireServer(unpack(v345));print("[AutoBuy] ✅ Покупка завершена!");else print("[AutoBuy] ❌ DataRemoteEvent не найден");end break;end end end);v81=5;end if (v81==(1001 -(938 + 63))) then if  not v8 then return;end v82=v14();if ( #v82==(0 + 0)) then local v311=0;while true do if (v311==(1125 -(936 + 189))) then print("[AutoBuy] Нет подходящих предметов в ESP");return;end end end v81=1 + 0 ;end if (v81==(1616 -(1565 + 48))) then if  not v22(v83.object) then local v312=0 + 0 ;while true do if (v312==(1138 -(782 + 356))) then print("[AutoBuy] ❌ Не удалось кликнуть по предмету");return;end end end v84=v23(v83.object);if  not v84 then print("[AutoBuy] ❌ Продавец Buy не найден");return;end v81=4;end if (v81==2) then print("[AutoBuy] 📦 Объект: "   .. v83.object.Name   .. " ("   .. v83.object.ClassName   .. ")" );if  not v21(v83.object) then print("[AutoBuy] ❌ Не удалось телепортироваться к предмету");return;end print("[AutoBuy] 🖱️ Клик ЛКМ по предмету...");v81=270 -(176 + 91) ;end end end local function v25() local v86=nil;local v87=math.huge;local v88=workspace:FindFirstChild("ActiveShops");if  not v88 then local v204=0 -0 ;while true do if (v204==(0 -0)) then print("[AutoSell] ❌ ActiveShops не найдена");return nil;end end end for v184,v185 in pairs(v88:GetChildren()) do pcall(function() local v205=0;local v206;while true do if (v205==(1092 -(975 + 117))) then v206=v185:FindFirstChild("NPC");if v206 then local v336=0;local v337;while true do if ((1875 -(157 + 1718))==v336) then v337=v206:FindFirstChild("Sell");if v337 then local v360=0;local v361;while true do if (v360==(0 + 0)) then v361=v17(v337);if (v361 and (v361<v87)) then local v363=0 -0 ;while true do if (v363==(0 -0)) then v87=v361;v86=v337;v363=1019 -(697 + 321) ;end if (v363==(2 -1)) then print("[AutoSell] 🔍 Найден продавец Sell в магазине: "   .. v185.Name   .. " (дистанция: "   .. math.floor(v361)   .. "м)" );break;end end end break;end end end break;end end end break;end end end);end if v86 then local v207=0;while true do if (v207==0) then print("[AutoSell] ✅ Выбран продавец Sell");return v86;end end else local v208=0 -0 ;while true do if (v208==(0 -0)) then print("[AutoSell] ❌ Продавец Sell не найден в ActiveShops");return nil;end end end end local function v26() local v89=0 + 0 ;local v90;local v91;while true do if (v89==(6 -2)) then if  not v91 then print("[AutoSell] ❌ Ошибка при отправке команды продажи");return;end print("[AutoSell] ✅ Цикл продажи завершен\n");break;end if (v89==2) then print("[AutoSell] 🚀 Телепортирую к продавцу...");if  not v21(v90) then local v313=0 -0 ;while true do if (v313==0) then print("[AutoSell] ❌ Не удалось телепортироваться к продавцу");return;end end end v89=1230 -(322 + 905) ;end if (v89==3) then print("[AutoSell] 💰 Отправляю команду продажи...");v91=pcall(function() local v261=game:GetService("ReplicatedStorage"):FindFirstChild("DataRemoteEvent");if v261 then local v321=611 -(602 + 9) ;local v322;local v323;while true do if (v321==(1189 -(449 + 740))) then v322=Instance.new("StringValue");v323={{"\004",{v322,n=1899 -(260 + 1638) }}};v321=1;end if (v321==1) then print("[AutoSell] 📡 Отправка DataRemoteEvent с кодом \\004");v261:FireServer(unpack(v323));v321=442 -(382 + 58) ;end if (v321==(6 -4)) then print("[AutoSell] ✅ Команда продажи отправлена!");return true;end end else local v324=0 + 0 ;while true do if (v324==(0 -0)) then print("[AutoSell] ❌ DataRemoteEvent не найден в ReplicatedStorage");return false;end end end end);v89=4;end if (v89==(0 -0)) then if  not v9 then print("[AutoSell] ⚠️ AutoSell выключен");return;end print("[AutoSell] 🔄 Начинаю цикл продажи...");v89=1206 -(902 + 303) ;end if (v89==(1 -0)) then v90=v25();if  not v90 then local v314=0 -0 ;while true do if (v314==(0 + 0)) then print("[AutoSell] ❌ Продавец Sell не найден");return;end end end v89=1692 -(1121 + 569) ;end end end local v27=nil;local function v28() local v92=214 -(22 + 192) ;while true do if (v92==(683 -(483 + 200))) then if v27 then return;end v27=task.spawn(function() local v262=0;while true do if (v262==(1463 -(1404 + 59))) then while v9 do v26();task.wait();end v27=nil;break;end end end);break;end end end local function v29() v9=false;if v27 then local v209=0 -0 ;while true do if (v209==(0 -0)) then task.cancel(v27);v27=nil;break;end end end end local v30=nil;local function v31() local v93=0;while true do if (v93==(765 -(468 + 297))) then if v30 then return;end v30=task.spawn(function() local v263=562 -(334 + 228) ;while true do if (v263==0) then while v8 do local v339=0;while true do if (v339==(0 -0)) then v24();task.wait();break;end end end v30=nil;break;end end end);break;end end end local function v32() local v94=0;while true do if (v94==0) then v8=false;if v30 then local v315=0 -0 ;while true do if (v315==(0 -0)) then task.cancel(v30);v30=nil;break;end end end break;end end end local function v33() local v95=0 + 0 ;local v96;local v97;while true do if (v95==1) then v97:AddToggle("ESP",{Title="Включить ESP",Default=v7,Callback=function(v264) v7=v264;v15();if v7 then v19();end end});v97:AddParagraph({Title="💰 Цена",Content=""});v97:AddInput("MinPrice",{Title="Цена ОТ",Default=tostring(v10.minPrice),Placeholder="0",Numeric=true,Finished=true,Callback=function(v265) local v266=tonumber(v265);if v266 then local v325=236 -(141 + 95) ;while true do if (v325==(0 + 0)) then v10.minPrice=v266;if v7 then v19();end break;end end end end});v95=4 -2 ;end if (v95==(6 -3)) then v97:AddParagraph({Title="🎯 Авто-покупка",Content=""});v97:AddToggle("AutoBuy",{Title="Включить AutoBuy",Default=v8,Callback=function(v267) v8=v267;if v267 then v31();else v32();end end});v97:AddButton({Title="Выполнить одну итерацию AutoBuy",Callback=function() if v8 then v24();else print("[AutoBuy] Включите AutoBuy сначала");end end});v95=4;end if (v95==(1 + 3)) then v97:AddParagraph({Title="💰 Авто-продажа",Content=""});v97:AddToggle("AutoSell",{Title="Включить AutoSell",Default=v9,Callback=function(v268) local v269=0 -0 ;while true do if (v269==(0 + 0)) then v9=v268;if v268 then v28();else v29();end break;end end end});v97:AddButton({Title="Выполнить одну итерацию AutoSell",Callback=function() v26();end});v95=3 + 2 ;end if (v95==0) then if  not v1 then local v316=0 -0 ;while true do if (v316==(0 + 0)) then createSimpleGUI();return;end end end v96=v0:CreateWindow({Title="ESP + AutoBuy + AutoSell",SubTitle="by Firma Mode Hub | TG: @FirmaModeHub",TabWidth=160,Size=UDim2.fromOffset(613 -(92 + 71) ,198 + 202 ),Acrylic=false,Theme="Dark",MinimizeKey=Enum.KeyCode.LeftControl});v97=v96:AddTab({Title="Фильтры",Icon="settings"});v95=1 -0 ;end if (v95==5) then v97:AddButton({Title="Обновить ESP",Callback=function() if v7 then v19();end end});break;end if (2==v95) then v97:AddInput("MaxPrice",{Title="Цена ДО",Default=tostring(v10.maxPrice),Placeholder="1000",Numeric=true,Finished=true,Callback=function(v270) local v271=765 -(574 + 191) ;local v272;while true do if (v271==0) then v272=tonumber(v270);if v272 then v10.maxPrice=v272;if v7 then v19();end end break;end end end});v97:AddParagraph({Title="🔄 Множитель перепродажи",Content=""});v97:AddInput("Resell",{Title="ReSellMulti ОТ",Default=tostring(v10.minResellMulti),Placeholder="2.0",Numeric=true,Finished=true,Callback=function(v273) local v274=0 + 0 ;local v275;while true do if (v274==(0 -0)) then v275=tonumber(v273);if v275 then v10.minResellMulti=v275;if v7 then v19();end end break;end end end});v95=3;end end end function createSimpleGUI() local v98=Instance.new("ScreenGui");v98.Name="ESPSettings";v98.Parent=v6:WaitForChild("PlayerGui");local v101=Instance.new("Frame");v101.Size=UDim2.new(0 + 0 ,1149 -(254 + 595) ,126 -(55 + 71) ,540 -130 );v101.Position=UDim2.new(0.5, -150,0.3,0);v101.BackgroundColor3=Color3.new((1820 -(573 + 1217))/(706 -451) ,(3 + 27)/255 ,40/(410 -155) );v101.BorderSizePixel=939 -(714 + 225) ;v101.Parent=v98;Instance.new("UICorner").CornerRadius=UDim.new(0 -0 ,10 -2 );Instance.new("UICorner").Parent=v101;local v109=Instance.new("TextLabel");v109.Size=UDim2.new(1,0 + 0 ,0 -0 ,40);v109.BackgroundTransparency=1;v109.Text="⚙️ Firma Mode Hub";v109.TextColor3=Color3.new(807 -(118 + 688) ,49 -(25 + 23) ,1 + 0 );v109.Font=Enum.Font.SourceSansBold;v109.TextSize=1906 -(927 + 959) ;v109.Parent=v101;local v118=Instance.new("TextLabel");v118.Size=UDim2.new(1,0,0,67 -47 );v118.Position=UDim2.new(732 -(16 + 716) ,0,0 -0 ,122 -(11 + 86) );v118.BackgroundTransparency=2 -1 ;v118.Text="TG: @FirmaModeHub";v118.TextColor3=Color3.new(150/255 ,(435 -(175 + 110))/(643 -388) ,(739 -589)/255 );v118.Font=Enum.Font.SourceSans;v118.TextSize=1808 -(503 + 1293) ;v118.Parent=v101;local function v128(v186,v187,v188,v189) local v190=0 -0 ;local v191;local v192;while true do if ((3 + 0)==v190) then v191.Parent=v101;v192=Instance.new("TextBox");v192.Size=UDim2.new(0.4,1061 -(810 + 251) ,0 + 0 ,25);v190=2 + 2 ;end if (v190==(8 + 0)) then return v192;end if (v190==(539 -(43 + 490))) then v192.PlaceholderText=v188;v192.Text="";v192.Parent=v101;v190=740 -(711 + 22) ;end if (v190==(26 -19)) then Instance.new("UICorner").CornerRadius=UDim.new(859 -(240 + 619) ,1 + 3 );Instance.new("UICorner").Parent=v192;v192.FocusLost:Connect(function() local v317=0 -0 ;local v318;while true do if (v317==(0 + 0)) then v318=tonumber(v192.Text);if v318 then v189(v318);end break;end end end);v190=8;end if (v190==1) then v191.BackgroundTransparency=1745 -(1344 + 400) ;v191.Text=v187;v191.TextColor3=Color3.fromRGB(605 -(255 + 150) ,158 + 42 ,108 + 92 );v190=8 -6 ;end if (v190==4) then v192.Position=UDim2.new(0.55 -0 ,1739 -(404 + 1335) ,406 -(183 + 223) ,v186);v192.BackgroundColor3=Color3.fromRGB(50,60 -10 ,40 + 20 );v192.BorderSizePixel=0;v190=2 + 3 ;end if (v190==(339 -(10 + 327))) then v191.Font=Enum.Font.SourceSans;v191.TextSize=10 + 4 ;v191.TextXAlignment=Enum.TextXAlignment.Left;v190=3;end if ((343 -(118 + 220))==v190) then v192.TextColor3=Color3.fromRGB(85 + 170 ,704 -(108 + 341) ,255);v192.Font=Enum.Font.SourceSans;v192.TextSize=7 + 7 ;v190=25 -19 ;end if (v190==(1493 -(711 + 782))) then v191=Instance.new("TextLabel");v191.Size=UDim2.new(0.4,0 -0 ,469 -(270 + 199) ,9 + 16 );v191.Position=UDim2.new(1819 -(580 + 1239) ,29 -19 ,0 + 0 ,v186);v190=1;end end end local v129=v128(3 + 57 ,"Цена ОТ:","0",function(v193) local v194=0;while true do if (v194==0) then v10.minPrice=v193;if v7 then v19();end break;end end end);local v130=v128(95,"Цена ДО:","1000",function(v195) local v196=0 + 0 ;while true do if (v196==(0 -0)) then v10.maxPrice=v195;if v7 then v19();end break;end end end);local v131=v128(81 + 49 ,"ReSellMulti ОТ:","2.0",function(v197) local v198=1167 -(645 + 522) ;while true do if ((1790 -(1010 + 780))==v198) then v10.minResellMulti=v197;if v7 then v19();end break;end end end);v129.Text=tostring(v10.minPrice);v130.Text=tostring(v10.maxPrice);v131.Text=tostring(v10.minResellMulti);local v135=Instance.new("TextButton");v135.Size=UDim2.new(0.8,0,0 + 0 ,35);v135.Position=UDim2.new(0.1 -0 ,0 -0 ,0,180);v135.BackgroundColor3=Color3.new(1836 -(1045 + 791) ,(506 -306)/255 ,0);v135.BorderSizePixel=0 -0 ;v135.Text="ESP ВКЛ";v135.TextColor3=Color3.new(506 -(351 + 154) ,1575 -(1281 + 293) ,267 -(28 + 238) );v135.Font=Enum.Font.SourceSansBold;v135.TextSize=35 -19 ;v135.Parent=v101;Instance.new("UICorner").CornerRadius=UDim.new(0,5);Instance.new("UICorner").Parent=v135;v135.MouseButton1Click:Connect(function() local v199=1559 -(1381 + 178) ;while true do if (v199==1) then v15();if v7 then v19();end break;end if (v199==(0 + 0)) then v7= not v7;if v7 then local v326=0 + 0 ;while true do if (v326==0) then v135.BackgroundColor3=Color3.new(0 + 0 ,200/(879 -624) ,0 + 0 );v135.Text="ESP ВКЛ";break;end end else v135.BackgroundColor3=Color3.new((670 -(381 + 89))/(227 + 28) ,0 + 0 ,0);v135.Text="ESP ВЫКЛ";end v199=1 -0 ;end end end);local v145=Instance.new("TextButton");v145.Size=UDim2.new(1156.8 -(1074 + 82) ,0,0,76 -41 );v145.Position=UDim2.new(1784.1 -(214 + 1570) ,1455 -(990 + 465) ,0 + 0 ,98 + 127 );v145.BackgroundColor3=Color3.new((98 + 2)/255 ,(393 -293)/(1981 -(1668 + 58)) ,(726 -(512 + 114))/255 );v145.BorderSizePixel=0;v145.Text="AutoBuy ВЫКЛ";v145.TextColor3=Color3.new(2 -1 ,1 -0 ,1);v145.Font=Enum.Font.SourceSansBold;v145.TextSize=55 -39 ;v145.Parent=v101;Instance.new("UICorner").CornerRadius=UDim.new(0 + 0 ,5);Instance.new("UICorner").Parent=v145;v145.MouseButton1Click:Connect(function() local v200=0 + 0 ;while true do if (v200==0) then v8= not v8;if v8 then local v329=0 + 0 ;while true do if (v329==(3 -2)) then v31();break;end if (v329==0) then v145.BackgroundColor3=Color3.new(1994 -(109 + 1885) ,(1669 -(1269 + 200))/(488 -233) ,0);v145.Text="AutoBuy ВКЛ";v329=816 -(98 + 717) ;end end else v145.BackgroundColor3=Color3.new(100/255 ,(926 -(802 + 24))/255 ,(172 -72)/(322 -67) );v145.Text="AutoBuy ВЫКЛ";v32();end break;end end end);local v155=Instance.new("TextButton");v155.Size=UDim2.new(0.8,0 + 0 ,0,27 + 8 );v155.Position=UDim2.new(0.1 + 0 ,0,0,59 + 211 );v155.BackgroundColor3=Color3.fromRGB(278 -178 ,100,333 -233 );v155.BorderSizePixel=0;v155.Text="AutoSell ВЫКЛ";v155.TextColor3=Color3.fromRGB(255,92 + 163 ,255);v155.Font=Enum.Font.SourceSansBold;v155.TextSize=16;v155.Parent=v101;Instance.new("UICorner").CornerRadius=UDim.new(0,3 + 2 );Instance.new("UICorner").Parent=v155;v155.MouseButton1Click:Connect(function() v9= not v9;if v9 then local v245=0;while true do if ((1 + 0)==v245) then v28();break;end if ((0 + 0)==v245) then v155.BackgroundColor3=Color3.new(0,(94 + 106)/(1688 -(797 + 636)) ,0 -0 );v155.Text="AutoSell ВКЛ";v245=1620 -(1427 + 192) ;end end else local v246=0 + 0 ;while true do if (v246==0) then v155.BackgroundColor3=Color3.new((232 -132)/(230 + 25) ,100/255 ,(46 + 54)/(581 -(192 + 134)) );v155.Text="AutoSell ВЫКЛ";v246=1277 -(316 + 960) ;end if (v246==1) then v29();break;end end end end);local v165=Instance.new("TextButton");v165.Size=UDim2.new(0.8 + 0 ,0 + 0 ,0 + 0 ,133 -98 );v165.Position=UDim2.new(551.1 -(83 + 468) ,1806 -(1202 + 604) ,0 -0 ,523 -208 );v165.BackgroundColor3=Color3.fromRGB(166 -106 ,385 -(45 + 280) ,80);v165.BorderSizePixel=0 + 0 ;v165.Text="Обновить ESP";v165.TextColor3=Color3.fromRGB(255,223 + 32 ,94 + 161 );v165.Font=Enum.Font.SourceSansBold;v165.TextSize=9 + 7 ;v165.Parent=v101;Instance.new("UICorner").CornerRadius=UDim.new(0 + 0 ,9 -4 );Instance.new("UICorner").Parent=v165;v165.MouseButton1Click:Connect(function() if v7 then v19();end end);print("[GUI] Простой интерфейс создан (Fluent не загружен)");end v33();v19();while wait(1913 -(340 + 1571) ) do local v175=0 + 0 ;while true do if (v175==(1772 -(1733 + 39))) then if v7 then v19();end endnnect(function() if v7 then v19();end end);v175=2 -1 ;end if (v175==1) then print("[GUI] Простой интерфейс создан (Fluent не загружен)");break;end end end v33();v19();while wait(1036 -(125 + 909) ) do if v7 then v19();end end
+-- Загрузка WindUI
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Wind-Explorer/WindUI/main/source.lua"))()
+
+-- Настройки
+local CONFIG = {
+    DELAY_BETWEEN_INVITES = 0.5, -- Задержка между приглашениями (секунды)
+    AUTO_REINVITE = true, -- Автоматически приглашать новых игроков
+    EXCLUDE_FRIENDS = false, -- Исключить друзей из приглашений
+    NOTIFY = true -- Показывать уведомления
+}
+
+-- Список уже приглашенных игроков
+local invitedPlayers = {}
+
+-- Статистика
+local stats = {
+    totalInvited = 0,
+    successInvites = 0,
+    failedInvites = 0,
+    playersOnServer = 0
+}
+
+-- Функция уведомлений
+local function notify(message, type)
+    if CONFIG.NOTIFY then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Auto Invite";
+            Text = message;
+            Duration = 3;
+        })
+    end
+    print("[Auto Invite]", message)
+    
+    -- Обновление лога в GUI
+    if _G.AutoInviteLog then
+        _G.AutoInviteLog(message, type or "info")
+    end
+end
+
+-- Обновление статистики
+local function updateStats()
+    stats.playersOnServer = #Players:GetPlayers() - 1
+    if _G.UpdateInviteStats then
+        _G.UpdateInviteStats(stats)
+    end
+end
+
+-- Получение информации о клане
+local function getMyClan()
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("ClanRemotes"):WaitForChild("GetMyClan"):InvokeServer()
+    end)
+    return success and result or nil
+end
+
+-- Проверка Rainbow статуса
+local function getRainbowStatus()
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("ClanRemotes"):WaitForChild("GetRainbowStatus"):InvokeServer()
+    end)
+    return success and result or nil
+end
+
+-- Отправка приглашения игроку
+local function invitePlayer(playerName)
+    if invitedPlayers[playerName] then
+        return false, "Already invited"
+    end
+    
+    local success, err = pcall(function()
+        local args = {playerName}
+        ReplicatedStorage:WaitForChild("ClanRemotes"):WaitForChild("InvitePlayer"):InvokeServer(unpack(args))
+    end)
+    
+    if success then
+        invitedPlayers[playerName] = true
+        stats.totalInvited = stats.totalInvited + 1
+        stats.successInvites = stats.successInvites + 1
+        notify("✓ Приглашен: " .. playerName, "success")
+        updateStats()
+        return true
+    else
+        stats.failedInvites = stats.failedInvites + 1
+        notify("✗ Ошибка приглашения: " .. playerName, "error")
+        updateStats()
+        return false, err
+    end
+end
+
+-- Проверка, можно ли пригласить игрока
+local function canInvitePlayer(player)
+    -- Не приглашать самого себя
+    if player == LocalPlayer then
+        return false
+    end
+    
+    -- Проверка на уже приглашенных
+    if invitedPlayers[player.Name] then
+        return false
+    end
+    
+    -- Исключить друзей если настройка включена
+    if CONFIG.EXCLUDE_FRIENDS then
+        local isFriend = player:IsFriendsWith(LocalPlayer.UserId)
+        if isFriend then
+            return false
+        end
+    end
+    
+    return true
+end
+
+-- Пригласить всех игроков на сервере
+local function inviteAllPlayers()
+    local myClan = getMyClan()
+    
+    if not myClan then
+        notify("⚠ У вас нет клана!", "warning")
+        return
+    end
+    
+    notify("🔄 Начинаю приглашать игроков...", "info")
+    
+    local inviteCount = 0
+    local players = Players:GetPlayers()
+    
+    for _, player in ipairs(players) do
+        if canInvitePlayer(player) then
+            local success = invitePlayer(player.Name)
+            if success then
+                inviteCount = inviteCount + 1
+            end
+            wait(CONFIG.DELAY_BETWEEN_INVITES)
+        end
+    end
+    
+    notify(string.format("✓ Приглашено игроков: %d/%d", inviteCount, #players - 1), "success")
+    updateStats()
+end
+
+-- Автоматическое приглашение новых игроков
+local function setupAutoInvite()
+    Players.PlayerAdded:Connect(function(player)
+        if CONFIG.AUTO_REINVITE then
+            wait(2) -- Ждем загрузки игрока
+            
+            if canInvitePlayer(player) then
+                notify("👤 Новый игрок: " .. player.Name, "info")
+                wait(CONFIG.DELAY_BETWEEN_INVITES)
+                invitePlayer(player.Name)
+            end
+        end
+        updateStats()
+    end)
+    
+    -- Очистка списка при выходе игрока
+    Players.PlayerRemoving:Connect(function(player)
+        invitedPlayers[player.Name] = nil
+        updateStats()
+    end)
+end
+
+-- Создание GUI
+local function createGUI()
+    local window = WindUI:CreateWindow({
+        Title = "Auto Clan Invite",
+        Icon = "rbxassetid://10734950309",
+        Author = "by Script",
+        Folder = "AutoInviteConfig",
+        Size = UDim2.fromOffset(480, 520),
+        KeySystem = {
+            Key = "test123",
+            Note = "Тестовый ключ: test123",
+            URL = "https://example.com/key",
+            SaveKey = true
+        },
+        Transparent = false,
+        Theme = "Dark",
+        SideBarWidth = 170,
+        HasOutline = true
+    })
+
+    -- Вкладка: Главная
+    local mainTab = window:Tab({
+        Name = "Главная",
+        Icon = "rbxassetid://10734950309",
+        Color = Color3.fromRGB(150, 120, 255)
+    })
+
+    local mainSection = mainTab:Section({
+        Name = "Управление"
+    })
+
+    -- Кнопка: Пригласить всех
+    mainSection:Button({
+        Name = "Пригласить всех игроков",
+        Callback = function()
+            inviteAllPlayers()
+        end
+    })
+
+    -- Кнопка: Очистить список
+    mainSection:Button({
+        Name = "Очистить список приглашенных",
+        Callback = function()
+            invitedPlayers = {}
+            stats.totalInvited = 0
+            stats.successInvites = 0
+            stats.failedInvites = 0
+            notify("🔄 Список приглашенных очищен", "info")
+            updateStats()
+        end
+    })
+
+    -- Статистика
+    local statsSection = mainTab:Section({
+        Name = "Статистика"
+    })
+
+    local statsLabel = statsSection:Label({
+        Text = "Загрузка статистики..."
+    })
+
+    -- Функция обновления статистики
+    _G.UpdateInviteStats = function(data)
+        statsLabel:Set(string.format(
+            "📊 Всего приглашено: %d\n" ..
+            "✅ Успешно: %d\n" ..
+            "❌ Ошибок: %d\n" ..
+            "👥 Игроков на сервере: %d",
+            data.totalInvited,
+            data.successInvites,
+            data.failedInvites,
+            data.playersOnServer
+        ))
+    end
+
+    -- Вкладка: Настройки
+    local settingsTab = window:Tab({
+        Name = "Настройки",
+        Icon = "rbxassetid://10734950682",
+        Color = Color3.fromRGB(255, 170, 0)
+    })
+
+    local settingsSection = settingsTab:Section({
+        Name = "Параметры приглашений"
+    })
+
+    -- Переключатель: Авто приглашение
+    settingsSection:Toggle({
+        Name = "Авто-приглашение новых игроков",
+        Value = CONFIG.AUTO_REINVITE,
+        Callback = function(value)
+            CONFIG.AUTO_REINVITE = value
+            notify(value and "✓ Авто-приглашение включено" or "✗ Авто-приглашение выключено", "info")
+        end
+    })
+
+    -- Переключатель: Исключить друзей
+    settingsSection:Toggle({
+        Name = "Исключить друзей",
+        Value = CONFIG.EXCLUDE_FRIENDS,
+        Callback = function(value)
+            CONFIG.EXCLUDE_FRIENDS = value
+            notify(value and "✓ Друзья исключены" or "✗ Друзья не исключаются", "info")
+        end
+    })
+
+    -- Переключатель: Уведомления
+    settingsSection:Toggle({
+        Name = "Уведомления",
+        Value = CONFIG.NOTIFY,
+        Callback = function(value)
+            CONFIG.NOTIFY = value
+        end
+    })
+
+    -- Слайдер: Задержка между приглашениями
+    settingsSection:Slider({
+        Name = "Задержка между приглашениями (сек)",
+        Min = 0.1,
+        Max = 5,
+        Value = CONFIG.DELAY_BETWEEN_INVITES,
+        Callback = function(value)
+            CONFIG.DELAY_BETWEEN_INVITES = value
+            notify(string.format("⏱ Задержка: %.1f сек", value), "info")
+        end
+    })
+
+    -- Вкладка: Логи
+    local logsTab = window:Tab({
+        Name = "Логи",
+        Icon = "rbxassetid://10747372992",
+        Color = Color3.fromRGB(0, 200, 255)
+    })
+
+    local logsSection = logsTab:Section({
+        Name = "История действий"
+    })
+
+    local logText = logsSection:Paragraph({
+        Title = "Лог событий",
+        Desc = "Ожидание событий..."
+    })
+
+    local logs = {}
+    local maxLogs = 15
+
+    -- Функция добавления логов
+    _G.AutoInviteLog = function(message, type)
+        local timestamp = os.date("%H:%M:%S")
+        local logEntry = string.format("[%s] %s", timestamp, message)
+        
+        table.insert(logs, 1, logEntry)
+        
+        if #logs > maxLogs then
+            table.remove(logs, maxLogs + 1)
+        end
+        
+        logText:Set({
+            Title = "Лог событий",
+            Desc = table.concat(logs, "\n")
+        })
+    end
+
+    -- Кнопка очистки логов
+    logsSection:Button({
+        Name = "Очистить логи",
+        Callback = function()
+            logs = {}
+            logText:Set({
+                Title = "Лог событий",
+                Desc = "Логи очищены"
+            })
+        end
+    })
+
+    -- Вкладка: Список игроков
+    local playersTab = window:Tab({
+        Name = "Игроки",
+        Icon = "rbxassetid://10747373176",
+        Color = Color3.fromRGB(100, 255, 150)
+    })
+
+    local playersSection = playersTab:Section({
+        Name = "Игроки на сервере"
+    })
+
+    local playersList = playersSection:Paragraph({
+        Title = "Список игроков",
+        Desc = "Загрузка..."
+    })
+
+    -- Обновление списка игроков
+    local function updatePlayersList()
+        local playerNames = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local status = invitedPlayers[player.Name] and "✓" or "○"
+                table.insert(playerNames, string.format("%s %s", status, player.Name))
+            end
+        end
+        
+        playersList:Set({
+            Title = string.format("Игроков: %d", #playerNames),
+            Desc = #playerNames > 0 and table.concat(playerNames, "\n") or "Нет игроков"
+        })
+    end
+
+    -- Кнопка обновления списка
+    playersSection:Button({
+        Name = "Обновить список",
+        Callback = updatePlayersList
+    })
+
+    -- Автообновление каждые 5 секунд
+    spawn(function()
+        while wait(5) do
+            updatePlayersList()
+        end
+    end)
+
+    -- Вкладка: Информация
+    local infoTab = window:Tab({
+        Name = "Инфо",
+        Icon = "rbxassetid://10734923549",
+        Color = Color3.fromRGB(255, 100, 100)
+    })
+
+    local infoSection = infoTab:Section({
+        Name = "О скрипте"
+    })
+
+    infoSection:Paragraph({
+        Title = "Auto Clan Invite",
+        Desc = "Автоматическое приглашение игроков в клан\n\n" ..
+               "Функции:\n" ..
+               "• Автоматические приглашения\n" ..
+               "• Отслеживание новых игроков\n" ..
+               "• Настраиваемая задержка\n" ..
+               "• Статистика и логи\n" ..
+               "• Список игроков\n\n" ..
+               "Версия: 2.0"
+    })
+
+    -- Начальное обновление
+    updateStats()
+    updatePlayersList()
+    
+    return window
+end
+
+-- Инициализация скрипта
+local function initialize()
+    notify("🚀 Auto Invite загружен!", "success")
+    
+    -- Проверяем наличие клана
+    local myClan = getMyClan()
+    if myClan then
+        notify("✓ Клан найден", "success")
+    else
+        notify("⚠ Клан не найден", "warning")
+    end
+    
+    -- Создание GUI
+    createGUI()
+    
+    -- Настройка автоматического приглашения
+    setupAutoInvite()
+    
+    -- Первичное обновление статистики
+    updateStats()
+    
+    notify("� Используйте GUI для управления", "info")
+end
+
+-- Запуск
+initialize()
+
