@@ -10,14 +10,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
--- Получаем ClanScript игрока
-local ClanScript = LocalPlayer:WaitForChild("ClanScript", 10)
-if not ClanScript then
-    LocalPlayer:Kick("❌ ClanScript не найден! Перезайдите в игру.")
-    return
-end
-
-print("[Auto Invite] ClanScript найден:", ClanScript:GetFullName())
+print("[Auto Invite] Загрузка скрипта...")
 
 -- Настройки
 local CONFIG = {
