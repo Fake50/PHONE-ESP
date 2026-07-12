@@ -5,58 +5,17 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-print("[Auto Invite] Начало загрузки...")
-
--- Безопасная загрузка Fluent UI
-local Fluent, SaveManager, InterfaceManager
-
-local success1, result1 = pcall(function()
-    return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-end)
-
-if not success1 then
-    warn("[Auto Invite] Ошибка загрузки Fluent:", result1)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Auto Invite - Ошибка";
-        Text = "Не удалось загрузить Fluent UI. Проверьте соединение.";
-        Duration = 10;
-    })
-    return
-end
-
-Fluent = result1
-print("[Auto Invite] Fluent загружен")
-
-local success2, result2 = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-end)
-
-if success2 then
-    SaveManager = result2
-    print("[Auto Invite] SaveManager загружен")
-else
-    warn("[Auto Invite] SaveManager не загружен:", result2)
-end
-
-local success3, result3 = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-end)
-
-if success3 then
-    InterfaceManager = result3
-    print("[Auto Invite] InterfaceManager загружен")
-else
-    warn("[Auto Invite] InterfaceManager не загружен:", result3)
-end
-
-print("[Auto Invite] Все библиотеки загружены успешно")
+-- Загрузка Fluent UI
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 -- Настройки
 local CONFIG = {
-    DELAY_BETWEEN_INVITES = 0.5,
-    AUTO_REINVITE = true,
-    EXCLUDE_FRIENDS = false,
-    NOTIFY = true
+    DELAY_BETWEEN_INVITES = 0.5, -- Задержка между приглашениями (секунды)
+    AUTO_REINVITE = true, -- Автоматически приглашать новых игроков
+    EXCLUDE_FRIENDS = false, -- Исключить друзей из приглашений
+    NOTIFY = true -- Показывать уведомления
 }
 
 -- Список уже приглашенных игроков
@@ -81,6 +40,7 @@ local function notify(message, type)
     end
     print("[Auto Invite]", message)
     
+    -- Обновление лога в GUI
     if _G.AutoInviteLog then
         _G.AutoInviteLog(message, type or "info")
     end
@@ -97,15 +57,32 @@ end
 -- Получение информации о клане
 local function getMyClan()
     local success, result = pcall(function()
-        local ClanRemotes = ReplicatedStorage:WaitForChild("ClanRemotes", 5)
-        local GetMyClan = ClanRemotes:WaitForChild("GetMyClan", 5)
-        return GetMyClan:InvokeServer()
+        -- Пробуем разные возможные пути к RemoteFunction клана
+        local remotes = ReplicatedStorage:FindFirstChild("ClanRemotes") or 
+                        ReplicatedStorage:FindFirstChild("Remotes") or
+                        ReplicatedStorage:FindFirstChild("NetworkRemotes")
+        
+        if not remotes then
+            warn("[Auto Invite] ClanRemotes не найдены!")
+            return nil
+        end
+        
+        local getMyClanRemote = remotes:FindFirstChild("GetMyClan") or
+                                 remotes:FindFirstChild("GetClan") or
+                                 remotes:FindFirstChild("GetPlayerClan")
+        
+        if getMyClanRemote and getMyClanRemote:IsA("RemoteFunction") then
+            return getMyClanRemote:InvokeServer()
+        end
+        
+        return nil
     end)
     
     if success and result then
+        notify("✓ Клан найден", "success")
         return result
     else
-        warn("[Auto Invite] Ошибка получения клана:", result)
+        notify("⚠ Не удалось получить информацию о клане", "warning")
         return nil
     end
 end
@@ -116,10 +93,33 @@ local function invitePlayer(playerName)
         return false, "Already invited"
     end
     
-    local success, result = pcall(function()
-        local ClanRemotes = ReplicatedStorage:WaitForChild("ClanRemotes", 5)
-        local InvitePlayer = ClanRemotes:WaitForChild("InvitePlayer", 5)
-        return InvitePlayer:InvokeServer(playerName)
+    local success, err = pcall(function()
+        -- Ищем правильный путь к RemoteEvent/RemoteFunction
+        local remotes = ReplicatedStorage:FindFirstChild("ClanRemotes") or 
+                        ReplicatedStorage:FindFirstChild("Remotes") or
+                        ReplicatedStorage:FindFirstChild("NetworkRemotes")
+        
+        if not remotes then
+            error("ClanRemotes не найдены!")
+        end
+        
+        -- Пробуем разные варианты названий
+        local inviteRemote = remotes:FindFirstChild("InvitePlayer") or
+                             remotes:FindFirstChild("InviteToClan") or
+                             remotes:FindFirstChild("SendInvite") or
+                             remotes:FindFirstChild("ClanInvite")
+        
+        if not inviteRemote then
+            error("InvitePlayer RemoteEvent не найден!")
+        end
+        
+        -- Вызываем в зависимости от типа
+        if inviteRemote:IsA("RemoteFunction") then
+            return inviteRemote:InvokeServer(playerName)
+        elseif inviteRemote:IsA("RemoteEvent") then
+            inviteRemote:FireServer(playerName)
+            return true
+        end
     end)
     
     if success then
@@ -131,24 +131,25 @@ local function invitePlayer(playerName)
         return true
     else
         stats.failedInvites = stats.failedInvites + 1
-        local errorMsg = tostring(result)
-        notify("✗ Ошибка: " .. errorMsg, "error")
-        warn("[Auto Invite] Ошибка:", errorMsg)
+        notify("✗ Ошибка: " .. tostring(err), "error")
         updateStats()
-        return false, result
+        return false, err
     end
 end
 
 -- Проверка, можно ли пригласить игрока
 local function canInvitePlayer(player)
+    -- Не приглашать самого себя
     if player == LocalPlayer then
         return false
     end
     
+    -- Проверка на уже приглашенных
     if invitedPlayers[player.Name] then
         return false
     end
     
+    -- Исключить друзей если настройка включена
     if CONFIG.EXCLUDE_FRIENDS then
         local isFriend = player:IsFriendsWith(LocalPlayer.UserId)
         if isFriend then
@@ -159,17 +160,12 @@ local function canInvitePlayer(player)
     return true
 end
 
--- Пригласить всех игроков
+-- Пригласить всех игроков на сервере
 local function inviteAllPlayers()
     local myClan = getMyClan()
     
     if not myClan then
         notify("⚠ У вас нет клана!", "warning")
-        Fluent:Notify({
-            Title = "Auto Invite",
-            Content = "У вас нет клана! Создайте клан перед использованием.",
-            Duration = 5
-        })
         return
     end
     
@@ -184,11 +180,11 @@ local function inviteAllPlayers()
             if success then
                 inviteCount = inviteCount + 1
             end
-            task.wait(CONFIG.DELAY_BETWEEN_INVITES)
+            wait(CONFIG.DELAY_BETWEEN_INVITES)
         end
     end
     
-    notify(string.format("✓ Приглашено: %d/%d", inviteCount, #players - 1), "success")
+    notify(string.format("✓ Приглашено игроков: %d/%d", inviteCount, #players - 1), "success")
     updateStats()
 end
 
@@ -196,17 +192,18 @@ end
 local function setupAutoInvite()
     Players.PlayerAdded:Connect(function(player)
         if CONFIG.AUTO_REINVITE then
-            task.wait(2)
+            wait(2) -- Ждем загрузки игрока
             
             if canInvitePlayer(player) then
                 notify("👤 Новый игрок: " .. player.Name, "info")
-                task.wait(CONFIG.DELAY_BETWEEN_INVITES)
+                wait(CONFIG.DELAY_BETWEEN_INVITES)
                 invitePlayer(player.Name)
             end
         end
         updateStats()
     end)
     
+    -- Очистка списка при выходе игрока
     Players.PlayerRemoving:Connect(function(player)
         invitedPlayers[player.Name] = nil
         updateStats()
@@ -233,76 +230,45 @@ local function createGUI()
         Info = Window:AddTab({ Title = "Инфо", Icon = "info" })
     }
 
-    -- Главная
-    Tabs.Main:AddSection("Управление")
-
-    Tabs.Main:AddButton({
-        Title = "🧪 Тест приглашения",
-        Description = "Пригласить первого игрока для теста",
-        Callback = function()
-            local testPlayer = nil
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    testPlayer = player
-                    break
-                end
-            end
-            
-            if testPlayer then
-                notify("🧪 Тест: " .. testPlayer.Name, "info")
-                local success, err = invitePlayer(testPlayer.Name)
-                
-                if success then
-                    Fluent:Notify({
-                        Title = "Тест успешен!",
-                        Content = "Приглашение отправлено: " .. testPlayer.Name,
-                        Duration = 5
-                    })
-                else
-                    Fluent:Notify({
-                        Title = "Тест провален",
-                        Content = "Ошибка: " .. tostring(err),
-                        Duration = 5
-                    })
-                end
-            else
-                notify("⚠ Нет других игроков", "warning")
-            end
-        end
-    })
+    -- Вкладка: Главная
+    local MainSection = Tabs.Main:AddSection("Управление")
 
     Tabs.Main:AddButton({
         Title = "Пригласить всех игроков",
-        Description = "Отправить приглашения всем",
+        Description = "Отправить приглашения всем игрокам",
         Callback = function()
             inviteAllPlayers()
         end
     })
 
     Tabs.Main:AddButton({
-        Title = "Очистить список",
-        Description = "Сбросить статистику",
+        Title = "Очистить список приглашенных",
+        Description = "Сбросить всю статистику",
         Callback = function()
             invitedPlayers = {}
             stats.totalInvited = 0
             stats.successInvites = 0
             stats.failedInvites = 0
-            notify("🔄 Список очищен", "info")
+            notify("🔄 Список приглашенных очищен", "info")
             updateStats()
         end
     })
 
     -- Статистика
-    Tabs.Main:AddSection("Статистика")
+    local StatsSection = Tabs.Main:AddSection("Статистика")
 
     local StatsParagraph = Tabs.Main:AddParagraph({
         Title = "Статистика приглашений",
-        Content = "Загрузка..."
+        Content = "Загрузка статистики..."
     })
 
+    -- Функция обновления статистики
     _G.UpdateInviteStats = function(data)
         StatsParagraph:SetDesc(string.format(
-            "📊 Всего: %d\n✅ Успешно: %d\n❌ Ошибок: %d\n👥 Игроков: %d",
+            "📊 Всего приглашено: %d\n" ..
+            "✅ Успешно: %d\n" ..
+            "❌ Ошибок: %d\n" ..
+            "👥 Игроков на сервере: %d",
             data.totalInvited,
             data.successInvites,
             data.failedInvites,
@@ -310,20 +276,22 @@ local function createGUI()
         ))
     end
 
-    -- Настройки
-    Tabs.Settings:AddSection("Параметры")
+    -- Вкладка: Настройки
+    local SettingsSection = Tabs.Settings:AddSection("Параметры приглашений")
 
     Tabs.Settings:AddToggle("AutoInvite", {
         Title = "Авто-приглашение новых игроков",
+        Description = "Автоматически приглашать новых игроков",
         Default = CONFIG.AUTO_REINVITE,
         Callback = function(value)
             CONFIG.AUTO_REINVITE = value
-            notify(value and "✓ Авто-приглашение ВКЛ" or "✗ Авто-приглашение ВЫКЛ", "info")
+            notify(value and "✓ Авто-приглашение включено" or "✗ Авто-приглашение выключено", "info")
         end
     })
 
     Tabs.Settings:AddToggle("ExcludeFriends", {
         Title = "Исключить друзей",
+        Description = "Не приглашать друзей в клан",
         Default = CONFIG.EXCLUDE_FRIENDS,
         Callback = function(value)
             CONFIG.EXCLUDE_FRIENDS = value
@@ -333,6 +301,7 @@ local function createGUI()
 
     Tabs.Settings:AddToggle("Notifications", {
         Title = "Уведомления",
+        Description = "Показывать уведомления о действиях",
         Default = CONFIG.NOTIFY,
         Callback = function(value)
             CONFIG.NOTIFY = value
@@ -340,7 +309,8 @@ local function createGUI()
     })
 
     Tabs.Settings:AddSlider("Delay", {
-        Title = "Задержка (сек)",
+        Title = "Задержка между приглашениями",
+        Description = "Задержка в секундах",
         Default = CONFIG.DELAY_BETWEEN_INVITES,
         Min = 0.1,
         Max = 5,
@@ -351,14 +321,15 @@ local function createGUI()
         end
     })
 
-    -- Игроки
-    Tabs.Players:AddSection("Список игроков")
+    -- Вкладка: Игроки
+    local PlayersSection = Tabs.Players:AddSection("Игроки на сервере")
 
     local PlayersList = Tabs.Players:AddParagraph({
-        Title = "Игроки на сервере",
+        Title = "Список игроков",
         Content = "Загрузка..."
     })
 
+    -- Обновление списка игроков
     local function updatePlayersList()
         local playerNames = {}
         for _, player in ipairs(Players:GetPlayers()) do
@@ -374,26 +345,29 @@ local function createGUI()
 
     Tabs.Players:AddButton({
         Title = "Обновить список",
+        Description = "Обновить список игроков",
         Callback = updatePlayersList
     })
 
+    -- Автообновление каждые 5 секунд
     task.spawn(function()
         while task.wait(5) do
             updatePlayersList()
         end
     end)
 
-    -- Логи
-    Tabs.Logs:AddSection("История")
+    -- Вкладка: Логи
+    local LogsSection = Tabs.Logs:AddSection("История действий")
 
     local LogsParagraph = Tabs.Logs:AddParagraph({
         Title = "Лог событий",
-        Content = "Ожидание..."
+        Content = "Ожидание событий..."
     })
 
     local logs = {}
     local maxLogs = 15
 
+    -- Функция добавления логов
     _G.AutoInviteLog = function(message, type)
         local timestamp = os.date("%H:%M:%S")
         local logEntry = string.format("[%s] %s", timestamp, message)
@@ -409,64 +383,39 @@ local function createGUI()
 
     Tabs.Logs:AddButton({
         Title = "Очистить логи",
+        Description = "Очистить всю историю",
         Callback = function()
             logs = {}
             LogsParagraph:SetDesc("Логи очищены")
         end
     })
 
-    -- Инфо
-    Tabs.Info:AddSection("О скрипте")
+    -- Вкладка: Информация
+    local InfoSection = Tabs.Info:AddSection("О скрипте")
 
     Tabs.Info:AddParagraph({
         Title = "Auto Clan Invite v2.0",
-        Content = "Автоматическое приглашение игроков в клан\n\nФункции:\n• Автоматические приглашения\n• Новые игроки\n• Настройки\n• Статистика\n• Логи"
+        Content = "Автоматическое приглашение игроков в клан\n\n" ..
+                   "Функции:\n" ..
+                   "• Автоматические приглашения\n" ..
+                   "• Отслеживание новых игроков\n" ..
+                   "• Настраиваемая задержка\n" ..
+                   "• Статистика и логи\n" ..
+                   "• Список игроков\n\n" ..
+                   "Создано для игры Stand For All Time"
     })
 
-    -- Диагностика
-    Tabs.Info:AddSection("Диагностика")
-    
-    Tabs.Info:AddButton({
-        Title = "🔍 Проверить RemoteEvents",
-        Callback = function()
-            print("=== ДИАГНОСТИКА ===")
-            
-            local ClanRemotes = ReplicatedStorage:FindFirstChild("ClanRemotes")
-            if ClanRemotes then
-                print("✅ ClanRemotes найден")
-                
-                for _, child in pairs(ClanRemotes:GetChildren()) do
-                    print("  -", child.Name, "(" .. child.ClassName .. ")")
-                end
-                
-                Fluent:Notify({
-                    Title = "Диагностика",
-                    Content = "Проверьте консоль (F9)",
-                    Duration = 5
-                })
-            else
-                print("❌ ClanRemotes не найден!")
-            end
-            
-            print("=== КОНЕЦ ===")
-        end
-    })
+    -- Настройка SaveManager и InterfaceManager
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({})
+    InterfaceManager:SetFolder("AutoInviteConfig")
+    SaveManager:SetFolder("AutoInviteConfig/saves")
+    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+    SaveManager:BuildConfigSection(Tabs.Settings)
 
-    -- Настройка SaveManager и InterfaceManager (если загружены)
-    if SaveManager and InterfaceManager then
-        SaveManager:SetLibrary(Fluent)
-        InterfaceManager:SetLibrary(Fluent)
-        SaveManager:IgnoreThemeSettings()
-        SaveManager:SetIgnoreIndexes({})
-        InterfaceManager:SetFolder("AutoInviteConfig")
-        SaveManager:SetFolder("AutoInviteConfig/saves")
-        InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-        SaveManager:BuildConfigSection(Tabs.Settings)
-        print("[Auto Invite] SaveManager активирован")
-    else
-        warn("[Auto Invite] SaveManager/InterfaceManager недоступны - настройки не будут сохраняться")
-    end
-
+    -- Начальное обновление
     updateStats()
     updatePlayersList()
     
@@ -475,29 +424,57 @@ local function createGUI()
     return Window
 end
 
--- Инициализация
+-- Инициализация скрипта
 local function initialize()
-    notify("🚀 Auto Invite загружен!", "success")
+    -- Диагностика: выводим все RemoteEvents/RemoteFunctions
+    print("=== ДИАГНОСТИКА AUTO INVITE ===")
+    print("Поиск RemoteEvents для клана...")
     
-    task.wait(1)
-    local myClan = getMyClan()
-    
-    if myClan then
-        local clanName = type(myClan) == "table" and (myClan.Name or myClan.name or "Unknown") or "Unknown"
-        notify("✓ Клан: " .. tostring(clanName), "success")
-    else
-        notify("⚠ У вас нет клана!", "warning")
+    local function scanFolder(folder, depth)
+        depth = depth or 0
+        if depth > 3 then return end
+        
+        for _, child in pairs(folder:GetChildren()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                local path = child:GetFullName()
+                if path:lower():find("clan") or path:lower():find("invite") then
+                    print(string.format("  [%s] %s", child.ClassName, path))
+                end
+            elseif child:IsA("Folder") or child:IsA("Model") then
+                scanFolder(child, depth + 1)
+            end
+        end
     end
     
+    scanFolder(ReplicatedStorage)
+    print("=== КОНЕЦ ДИАГНОСТИКИ ===")
+    
+    notify("🚀 Auto Invite загружен!", "success")
+    
+    -- Проверяем наличие клана
+    task.wait(1)
+    local myClan = getMyClan()
+    if myClan then
+        notify("✓ Клан найден: " .. tostring(myClan.Name or "Unknown"), "success")
+    else
+        notify("⚠ Клан не найден или ошибка", "warning")
+        notify("ℹ Проверьте консоль (F9) для диагностики", "info")
+    end
+    
+    -- Создание GUI
     createGUI()
+    
+    -- Настройка автоматического приглашения
     setupAutoInvite()
+    
+    -- Первичное обновление статистики
     updateStats()
     
-    notify("✓ Готов к работе", "info")
+    notify("✓ Используйте GUI для управления", "info")
     
     Fluent:Notify({
-        Title = "Auto Clan Invite",
-        Content = myClan and "Скрипт готов!" or "У вас нет клана!",
+        Title = "Auto Invite",
+        Content = "Скрипт успешно загружен! Проверьте консоль (F9) для диагностики.",
         Duration = 5
     })
 end
