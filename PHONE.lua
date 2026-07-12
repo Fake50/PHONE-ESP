@@ -7,12 +7,49 @@ local LocalPlayer = Players.LocalPlayer
 
 print("[Auto Invite] Начало загрузки...")
 
--- Загрузка Fluent UI
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- Безопасная загрузка Fluent UI
+local Fluent, SaveManager, InterfaceManager
 
-print("[Auto Invite] Fluent UI загружен")
+local success1, result1 = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+end)
+
+if not success1 then
+    warn("[Auto Invite] Ошибка загрузки Fluent:", result1)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Auto Invite - Ошибка";
+        Text = "Не удалось загрузить Fluent UI. Проверьте соединение.";
+        Duration = 10;
+    })
+    return
+end
+
+Fluent = result1
+print("[Auto Invite] Fluent загружен")
+
+local success2, result2 = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+end)
+
+if success2 then
+    SaveManager = result2
+    print("[Auto Invite] SaveManager загружен")
+else
+    warn("[Auto Invite] SaveManager не загружен:", result2)
+end
+
+local success3, result3 = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+end)
+
+if success3 then
+    InterfaceManager = result3
+    print("[Auto Invite] InterfaceManager загружен")
+else
+    warn("[Auto Invite] InterfaceManager не загружен:", result3)
+end
+
+print("[Auto Invite] Все библиотеки загружены успешно")
 
 -- Настройки
 local CONFIG = {
@@ -415,15 +452,20 @@ local function createGUI()
         end
     })
 
-    -- Настройка SaveManager
-    SaveManager:SetLibrary(Fluent)
-    InterfaceManager:SetLibrary(Fluent)
-    SaveManager:IgnoreThemeSettings()
-    SaveManager:SetIgnoreIndexes({})
-    InterfaceManager:SetFolder("AutoInviteConfig")
-    SaveManager:SetFolder("AutoInviteConfig/saves")
-    InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-    SaveManager:BuildConfigSection(Tabs.Settings)
+    -- Настройка SaveManager и InterfaceManager (если загружены)
+    if SaveManager and InterfaceManager then
+        SaveManager:SetLibrary(Fluent)
+        InterfaceManager:SetLibrary(Fluent)
+        SaveManager:IgnoreThemeSettings()
+        SaveManager:SetIgnoreIndexes({})
+        InterfaceManager:SetFolder("AutoInviteConfig")
+        SaveManager:SetFolder("AutoInviteConfig/saves")
+        InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+        SaveManager:BuildConfigSection(Tabs.Settings)
+        print("[Auto Invite] SaveManager активирован")
+    else
+        warn("[Auto Invite] SaveManager/InterfaceManager недоступны - настройки не будут сохраняться")
+    end
 
     updateStats()
     updatePlayersList()
